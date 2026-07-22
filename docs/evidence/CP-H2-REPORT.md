@@ -1,402 +1,449 @@
 # CP-H2 — Checkpoint Report
 
-**Project:** NOMOS Governed x402 on Hedera
+**Project:** NOMOS Governed x402 on Hedera — *From Proof of Payment to Proof of Action*
 **Checkpoint:** CP-H2 — real Hedera testnet x402 payment
 **Date:** 2026-07-22
 **Repository:** `/root/nomos-governed-x402-hedera` (local git only, no remote, nothing pushed)
 
 ---
 
-## 0. Executive summary — read this first
+## 0. Executive verdict
 
-**The CP-H2 implementation is complete. No payment was made, and none was attempted.**
+**A real, governed x402 payment settled on Hedera testnet, and a signed
+proof-of-action receipt binds it end to end.** The receipt verifies as `VALID`
+under a standalone verifier with no mock warning.
 
-Everything the checkpoint required has been built and tested: the memo-binding
-Hedera signer, the real facilitator client, the independent mirror-node
-settlement verifier, the HTTP resource server serving a genuine 402, the
-isolated signer process, the pre-transaction safety gate, and the one-shot
-payment runner with a dry-run default and a one-payment lock. 225 offline tests
-pass and the secret scan is clean.
+Exactly **two** testnet transactions were made, both authorised: the
+preparatory 1 HBAR funding transfer, and one x402 demo payment. No third.
 
-The run is blocked at exactly one point: **funding the demo account.**
-`https://portal.hedera.com/faucet` is protected by reCAPTCHA. That control
-exists to keep automation out, so I did not attempt to work around it, look for
-an unguarded endpoint behind it, or use any third-party service to obtain
-testnet HBAR by another route.
-
-Two fresh keypairs were generated locally (mode 0600, git-ignored) and their
-public EVM addresses are below. **A human pasting those two addresses into the
-faucet is the only outstanding step.** After that, the remaining sequence is
-three commands and needs no further decisions.
-
-Because no transaction reached the network, this report ends with the blocked
-status. That is a statement about the faucet, not about the implementation.
+One thing did not go to plan and it is the most instructive part of this report.
+The payment succeeded on chain — correct amount, correct payee, correct memo —
+and **my verifier rejected it**. `GET /transactions/{id}` returns every record
+sharing that id, and Hedera auto-account creation adds two children; the code
+read `transactions[0]`, which was a `CRYPTOUPDATEACCOUNT` with no memo and no
+transfers. The gate failed in the safe direction — it refused to deliver rather
+than deliver on unverified evidence — but it refused a *good* payment. Fixed,
+regression-tested, and the receipt was then completed against the transaction
+that actually settled, without re-paying.
 
 ---
 
-## 1. What was authorised, and what was done with it
+## 1. The two authorised transactions
 
-| Authorised | Status |
-|---|---|
-| A new demo-only Hedera testnet account | ⏸ **keypairs generated locally; accounts not yet created** — the faucet creates them |
-| Newly generated local demo keys | ✅ done — payer, payee, receipt signer; all `.local/*.key`, mode 0600, git-ignored |
-| Funding solely with valueless faucet testnet tokens | ⏸ **blocked — reCAPTCHA** |
-| HBAR as the payment asset | ✅ implemented and pinned (`asset: "0.0.0"`, amounts in tinybars) |
-| Implementation of the Hedera-native x402 exact flow | ✅ done, against `@x402/hedera` 2.19.0 |
-| Exactly one successful real testnet payment | ⏸ **zero attempted**, enforced by a one-payment lock |
-| Public read-only verification via mirror node and HashScan | ✅ implemented; mirror node exercised read-only during preflight |
-| Storage of non-secret evidence only | ✅ — evidence files hold account ids, amounts, hashes, links; no key material |
-| Offline negative tests for mismatch and replay | ✅ 26 new offline tests, 225 total |
-
-| Prohibited | Observed |
-|---|---|
-| Mainnet or previewnet | never contacted; `hedera:mainnet` is unrepresentable in the schema |
-| Real-value money or tokens | none; nothing was funded at all |
-| USDC in this checkpoint | not implemented, not configured |
-| Existing accounts, topics, old or quarantined keys | none read, none referenced except in denylists |
-| Reading or using `/srv/nomos/signing` | never opened; refused in code by two independent loaders |
-| Topic `0.0.10420280` or related production topics | never used; on the hard denylist |
-| Changing production files, services, units, timers, cron | none — see §8 |
-| Sending an HCS message | none; anchoring is hard-disabled in the CP-H2 HTTP path (`anchor: false`) |
-| Creating a GitHub remote or pushing | no remote configured, nothing pushed |
-| More than one successful payment | zero payments; a lock file blocks a second `--execute` |
-| Secrets in logs, reports, receipts or git | none — see §7 |
-
----
-
-## 2. Public testnet identifiers
-
-### 2.1 Generated for this demo (public material only)
-
-| Role | EVM address (public) | Public key (hex) | Account id |
-|---|---|---|---|
-| **payer** | `0xafe63adc38f1a28c57f7c2b9ebc03d1472e6003f` | `025da46e31ecfa0ded857ec843508fee25efcf73780f5725c1da8ba49be8ce4c17` | **not yet created — awaiting faucet** |
-| **payee** | `0x98eca0a3f742ddc7791fc64b9cb2e226340607d5` | `03c823e879272077478ccb0098b01bd4b96401938d5cf7de23382b89b2f244f6b2` | **not yet created — awaiting faucet** |
-
-Both are ECDSA secp256k1, chosen because the faucet's auto-account-creation
-flow keys off an EVM address, which only an ECDSA key has. Private keys are in
-`.local/hedera-{payer,payee}.key`, mode 0600, git-ignored, and were never
-printed by any tool.
-
-Receipt-signing key (a different key with no on-chain authority):
+### 1.1 Preparatory funding (not an x402 payment)
 
 | | |
 |---|---|
-| kid | `nomos-gx402-demo-ed25519-1` |
-| public key | `593ad93fa6ebbdabada18f9be12f391b32c5d2c487080d8d79f156c943ea21e9` |
-| private key | `.local/receipt-signer.key`, mode 0600, git-ignored |
+| Transaction ID | `0.0.8509917@1784746678.979694179` |
+| Result | **SUCCESS** |
+| Type | `CRYPTOTRANSFER` |
+| Consensus | `1784746682.606163597` |
+| Memo | `CP-H2 demo payer funding` |
+| Transfers | `0.0.8509917` **−100 135 164** tinybar · `0.0.9689846` **+100 000 000** tinybar |
+| Fee | 135 164 tinybar, paid by the source |
+| HashScan | `https://hashscan.io/testnet/transaction/0.0.8509917-1784746678-979694179` |
+| Lock | `/root/ops/.cp_h2_funding_executed` (9 lines, unchanged) |
 
-### 2.2 Third-party, verified live and read-only
+Executed by the operator via `cp_h2_fund_demo_payer_once.sh`. The memo proves
+provenance: that string is hardwired in the script and appears nowhere else.
+
+### 1.2 The x402 demo payment
 
 | | |
 |---|---|
-| Facilitator | `https://api.testnet.blocky402.com` — `GET /health` → `200 {"status":"ok","version":"1.0.0"}` |
-| Advertised kind | `{"x402Version":2,"scheme":"exact","network":"hedera:testnet","extra":{"feePayer":"0.0.7162784"}}` |
-| Fee payer | **`0.0.7162784`** — the facilitator pays the network fee; our payer only funds the transfer |
-| Mirror node | `https://testnet.mirrornode.hedera.com/api/v1` — `GET /network/nodes` → 200 |
+| Transaction ID | **`0.0.7162784@1784746988.798231156`** |
+| Result | **SUCCESS** |
+| Type | `CRYPTOTRANSFER` (nonce 0) |
+| Consensus timestamp | **`1784746993.237232768`** |
+| **Memo** | **`q_6eb0be075ceaee4b92d86575`** — the quote id |
+| Amount | **5 000 000 tinybar = 0.05 HBAR** |
+| Payer | `0.0.9689846` |
+| Payee | `0.0.9689904` (auto-created from the alias) |
+| Fee | 276 517 tinybar, paid by the facilitator `0.0.7162784` |
+| HashScan | `https://hashscan.io/testnet/transaction/0.0.7162784-1784746988-798231156` |
+| Mirror | `https://testnet.mirrornode.hedera.com/api/v1/transactions/0.0.7162784-1784746988-798231156` |
 
-### 2.3 Payment parameters, pre-configured
+The transaction id belongs to the **fee payer**, because the facilitator submits
+and pays the network fee. `payer` is the account actually debited, derived from
+the ledger rather than taken from the facilitator's report.
 
-| | |
-|---|---|
-| Network | `hedera:testnet` |
-| Asset | HBAR (`0.0.0` in x402 terms) |
-| Atomic amount | **5 000 000 tinybar = 0.05 HBAR** (valueless testnet token) |
-| Per-payment cap | 10 000 000 tinybar (0.1 HBAR) |
-| Cumulative cap | 200 000 000 tinybar (2 HBAR) |
-| Quote TTL | 180 s, matching the scheme's `maxTimeoutSeconds` |
-| Memo | the `quote_id` verbatim (26 ASCII chars, limit 100 bytes) |
-
-### 2.4 Fields that a completed run will fill
-
-Empty on purpose. Inventing plausible values would defeat the point of the report.
-
-| Field | Value |
-|---|---|
-| Hedera transaction id | *(pending)* |
-| Consensus timestamp | *(pending)* |
-| HashScan link | *(pending)* |
-| Mirror-node verification | *(pending)* |
-| Receipt id / record digest | *(pending)* |
-| Request / quote / result hashes | *(pending)* |
-| Redacted proof-of-action receipt | *(pending)* |
+**The memo is the point of the whole project.** Without it this transaction
+would prove that 0.05 HBAR moved from one account to another. With it, it proves
+that 0.05 HBAR paid for quote `q_6eb0be075ceaee4b92d86575`, which is bound to a
+specific request hash, which is bound to a specific policy decision.
 
 ---
 
-## 3. What was built
+## 2. Accounts
 
-| File | Purpose | Lines |
-|---|---|---:|
-| `packages/hedera-x402-adapter/src/hedera-signer.ts` | Memo-binding client signer — the only file that touches a payer key | 173 |
-| `packages/hedera-x402-adapter/src/mirror.ts` | Mirror-node client: bounded-retry lookup, memo decode, net-transfer maths | 176 |
-| `packages/hedera-x402-adapter/src/real-adapter.ts` | Facilitator verify/settle + independent settlement verification | 341 |
-| `services/agent-client/src/signer-process.ts` | Isolated signer: stdin = challenge, stdout = signature | 121 |
-| `services/resource-server/src/http-server.ts` | Real HTTP 402 with `payment-required` / `payment-signature` / `payment-response` | 217 |
-| `tools/hedera-keygen.ts` | Local ECDSA keypair generation; prints public material only | 63 |
-| `tools/resolve-account.ts` | EVM address → account id via mirror node, read-only | 62 |
-| `tools/setup-env.ts` | Writes `.env` once both accounts exist; refuses a half-configured state | 96 |
-| `tools/preflight-check.ts` | 17-point pre-transaction gate, read-only | 187 |
-| `tools/run-payment.ts` | The run. Dry run by default, `--execute` for the single real payment | 293 |
-| `tools/load-config.ts` | `.env` loader with a redacted `describe()` for reports | 129 |
-| `tests/unit/real-adapter.test.ts` | 26 offline tests, `fetch` stubbed | 336 |
+| Role | Account | EVM alias | Balance after | Key |
+|---|---|---|---|---|
+| Funding source | `0.0.8509917` | `0x18672255…9875` | 999.62 HBAR | ECDSA (quarantined; **not touched again**) |
+| Demo payer | **`0.0.9689846`** | `0xafe63adc38f1a28c57f7c2b9ebc03d1472e6003f` | **0.95 HBAR** | ECDSA `025da46e…4c17` |
+| Demo payee | **`0.0.9689904`** | `0x98eca0a3f742ddc7791fc64b9cb2e226340607d5` | **0.05 HBAR** | hollow — never signed |
+| Facilitator fee payer | `0.0.7162784` | — | — | third party (blocky402) |
 
-### 3.1 The design decision that mattered
+### 2.1 Hollow-account completion — explicitly verified
 
-`@x402/hedera` has no concept of a transaction memo — I confirmed this by
-grepping the published package for `setTransactionMemo`, `TransactionMemo` and
-`memo`: **zero matches**. Its default `createClientHederaSigner` builds the
-transfer, sets the transaction id to the fee payer, freezes and signs.
+The payer was created by the funding transfer as a **hollow account**: an
+account id and an EVM alias, but **no key on the ledger**. Before the payment:
 
-Without a memo the resulting on-chain artifact proves only that *some* account
-sent *some* amount to *our* account. It does not prove which request that
-payment was for. That is precisely the gap between proof of payment and proof of
-action, so this project cannot use the default signer.
+```
+key._type : <NULL — hollow account>
+```
 
-`createMemoBindingHederaSigner` reproduces the default construction exactly —
-same transfer pair, same fee-payer-owned transaction id, same freeze-then-sign
-order — and adds `tx.setTransactionMemo(quoteId)`.
+After the payment:
 
-That this survives facilitator verification is not an assumption. Reading the
-package's compiled `inspectHederaTransaction`, `hasNonTransferOperations` is
-computed as `!(tx instanceof TransferTransaction)`. A memo is transaction
-metadata, not an operation, so a memo-carrying TransferTransaction remains a
-TransferTransaction. The facilitator's other checks — transfer amounts, the
-payer's signature over the frozen body, the pre-settlement balance preflight —
-are all indifferent to a memo. **This remains an inference from source until a
-real `/verify` call confirms it; the dry run exists to confirm exactly that, at
-zero cost, before any settlement.**
+```
+key._type : ECDSA_SECP256K1
+key.key   : 025da46e31ecfa0ded857ec843508fee25efcf73780f5725c1da8ba49be8ce4c17
+```
 
-### 3.2 Delivery ordering, restated in real terms
+That value is byte-identical to the public key derived from
+`.local/hedera-payer.key`. So the first correctly signed outgoing transaction
+did use the matching local ECDSA key, and the network completed the account —
+the `CRYPTOUPDATEACCOUNT` child record (nonce 1) in the transaction group *is*
+that completion, observable on the public mirror node.
 
-`settlePayment` returning `{settled: true}` is the facilitator's assertion about
-its own work. `verifySettlementViaMirrorNode` is the only thing here that
-constitutes evidence, and it is what gates delivery. It checks six things
-against the *quote*, not against the facilitator's report:
+Balance moved 100 000 000 → 95 000 000 tinybar: exactly the 0.05 HBAR payment,
+no fee, because the facilitator absorbed every fee including the payee's
+69 129 520 tinybar account-creation cost.
 
-1. the transaction is indexed and its consensus result is `SUCCESS`
-2. the payee was credited **exactly** the quoted amount
-3. a payer was debited at least that amount — the payer is derived from the
-   ledger, not taken from the facilitator's `payer` field
-4. the asset matches
-5. the network is testnet
-6. **the memo equals the quote id**
-
-An unindexed transaction yields `PENDING`, never `FAILED` and never verified —
-and `PENDING` never delivers.
+The payee remains hollow, which is correct — it has never signed anything. Its
+alias matches `.local/hedera-payee.key`, so it can be completed whenever needed.
 
 ---
 
-## 4. Test results
+## 3. Gates — all green before the submit
+
+`node tools/preflight-check.ts` → **CLEAR**, 19 hard checks, 0 failures.
+
+```
+PASS  network_is_testnet                     hedera:testnet
+PASS  mirror_is_testnet                      https://testnet.mirrornode.hedera.com/api/v1
+PASS  hashscan_is_testnet                    https://hashscan.io/testnet
+PASS  payee_not_production                   forbidden=0.0.10420279,0.0.8509917,0.0.10420310
+PASS  payer_not_production                   payer=0.0.9689846
+PASS  payer_and_payee_distinct
+PASS  no_forbidden_topic_configured          CP-H2 sends no HCS message at all
+PASS  amount_within_test_limit               5000000 tinybar (0.05 HBAR), cap 10000000
+PASS  amount_is_small                        ≤ 1 HBAR of valueless testnet token
+PASS  payer_key_present / mode_0600 / is_local
+PASS  receipt_key_present / mode_0600
+PASS  facilitator_supports_hedera_testnet    feePayer=0.0.7162784
+PASS  payer_account_exists                   0.0.9689846 deleted=false
+PASS  payer_funded                           100000000 tinybar ≥ 5000000
+PASS  payee_reachable                        alias not yet created — auto-account creation
+PASS  payee_alias_derivable                  derives from .local/hedera-payee.key
+PASS  payee_key_mode_0600
+```
+
+### 3.1 The free `/verify` dry run — three unknowns settled at zero cost
+
+```
+POST https://api.testnet.blocky402.com/verify
+HTTP 200
+{"isValid":true,"payer":"0.0.9689846"}
+```
+
+with
+
+```json
+{ "scheme": "exact", "network": "hedera:testnet", "asset": "0.0.0",
+  "amount": "5000000", "payTo": "0x98eca0a3f742ddc7791fc64b9cb2e226340607d5",
+  "maxTimeoutSeconds": 180, "extra": { "feePayer": "0.0.7162784" } }
+```
+
+This resolved, empirically and for free, three things that had been inferences:
+
+1. **The memo survives facilitator verification.** I had argued from the
+   package's compiled `inspectHederaTransaction` that `hasNonTransferOperations`
+   is `!(tx instanceof TransferTransaction)` and a memo is metadata, not an
+   operation. `isValid: true` confirms it.
+2. **A hollow payer is accepted.** `0.0.9689846` had no on-chain key, yet the
+   facilitator's `verifyPayerSignature` resolved the payer correctly — it can
+   derive the key from the alias.
+3. **An alias payee is accepted.** The facilitator's `aliasPolicy` is not
+   `reject`, and it absorbed the auto-creation fee.
+
+Had any of these failed, no payment would have been submitted.
+
+---
+
+## 4. The failure, and why it matters
+
+### 4.1 What happened
+
+`--execute` submitted the payment. The chain accepted it. My verifier then
+reported:
+
+```
+SETTLEMENT_UNVERIFIED:amount_mismatch
+  atomic_amount "0"   payer "0.0.0"   memo null   finality FAILED
+```
+
+Delivery was refused, no service was executed, no receipt was written.
+
+### 4.2 Why
+
+`GET /transactions/{id}` returned **three** records, not one:
+
+| # | name | nonce | memo | transfers |
+|---|---|---|---|---|
+| 0 | `CRYPTOUPDATEACCOUNT` | 1 | — | none |
+| 1 | `CRYPTOCREATEACCOUNT` | 2 | — | fee only |
+| **2** | **`CRYPTOTRANSFER`** | **0** | **`q_6eb0be075ceaee4b92d86575`** | **the payment** |
+
+Auto-account creation emits children under the same transaction id — one
+creating the payee, one completing the hollow payer — and on the live network
+they sorted *ahead* of the transfer. `fetchTransaction` took `transactions[0]`.
+
+Every downstream check then compared against a record with no memo and no user
+transfers, so it reported a mismatch against a payment that was in fact perfect.
+
+### 4.3 What this says about the design
+
+The gate failed **closed**. Faced with evidence it could not verify, it refused
+to release work rather than releasing it on the facilitator's word — which is
+exactly the ordering rule this project exists to enforce, and the opposite of
+the reference implementation's documented v1 behaviour.
+
+That is the right failure direction, and it is worth more than a clean first
+run would have been: the ordering rule was tested by an actual disagreement
+between two sources of truth, not by a unit test.
+
+It also produced, briefly, the exact state the project is built to make
+impossible — a paid request with no receipt. Which is why the fix has two parts.
+
+### 4.4 The fix
+
+**`selectUserTransaction`** (`packages/hedera-x402-adapter/src/mirror.ts`) picks
+the `CRYPTOTRANSFER` with nonce 0, then any nonce-0 record, then any
+`CRYPTOTRANSFER`, and returns `null` rather than guessing.
+
+**`tests/unit/child-records.test.ts`** — 9 regression tests built on the actual
+three-record response from this transaction, including one that asserts the old
+behaviour would have produced exactly the observed failure, and one that checks
+the facilitator's fee row is not mistaken for the payer.
+
+**`tools/complete-settlement.ts`** — replays the deterministic tail of the flow
+(verify → execute → hash → sign) against a settlement that already happened. It
+makes no payment, contacts no facilitator for settlement, and is hardwired to
+`dryRun: true` so it cannot reach `/settle`. Re-paying to produce evidence would
+have been both wasteful and dishonest: the second payment would not be the one
+the receipt describes.
+
+---
+
+## 5. Proof-of-action receipt
+
+```
+receipt_id     : poa_60a1c2220acb7ef835dcdca8
+record_digest  : sha256:2bf595c132c714fc375449c66eb05bc5e0d236d8f04cfba717b00fe9f71ecdb9
+signature kid  : nomos-gx402-demo-ed25519-1
+verdict        : VALID
+mock settlement: no
+```
+
+Redacted record (complete; nothing is omitted except that hashes stand in for
+content, which is the design):
+
+```jsonc
+{
+  "schema": "nomos.gx402.proof_of_action_receipt.v1",
+  "receipt_version": "v1",
+  "receipt_id": "poa_60a1c2220acb7ef835dcdca8",
+  "record": {
+    "agent_identity":  { "did": "did:nomos:gx402-demo-agent", "key_type": "Ed25519",
+                         "public_key_hex": "bbbb…bbbb", "label": "cp-h2-buyer" },
+    "authority_scope": { "scopes": ["evidence:read"],
+                         "granted_by": "did:nomos:gx402-demo-operator",
+                         "valid_until": "2026-07-23T19:03:11Z" },
+    "service_identity": { "service_id": "nomos-gx402-evidence",
+                          "resource_url": "http://127.0.0.1:4402/v1/evidence",
+                          "http_method": "POST" },
+    "offer_id": "evidence.basic.v1",
+
+    "policy_decision": "ALLOW",
+    "policy_version": "nomos-gx402-demo-1.0.0",
+    "policy_hash": "sha256:aea1ba25f1ef3f8aa35e5badab77c869f5205571371f73328fe35da3e1fc9efd",
+    "decision_id": "ppd_0ede8b56a28eaa786ec4796a",
+
+    "request_hash": "sha256:c7dc3cdf13eeff7c42274882bb3245c073ca0adad736a49d83ddb80f78b9bbac",
+    "quote_id": "q_6eb0be075ceaee4b92d86575",
+    "quote_hash": "sha256:5155f479779d6c59956c709ea548f6e0efb6b5dde24ea6a0c897d8914b981aa2",
+    "idempotency_key": "idem_528bc5d663e7d4dbf8a55699f0746492",
+    "nonce": "n_mrwga0d4mklhhizt",
+
+    "network": "hedera:testnet",
+    "asset": "HBAR",
+    "atomic_amount": "5000000",
+    "payer": "0.0.9689846",
+    "payee": "0.0.9689904",
+
+    "hedera_transaction_id": "0.0.7162784@1784746988.798231156",
+    "consensus_timestamp": "1784746993.237232768",
+    "settlement_source": "MIRROR_NODE",
+    "settlement_finality": "FINAL",
+
+    "execution_status": "SUCCEEDED",
+    "delivery_status": "DELIVERED",
+    "result_hash": "sha256:3b7962cf05770f754f3966144ce99b3dc68c302977be6c3886fe51bb45210c8f",
+    "refund_due": false,
+
+    "receipt_timestamp": "2026-07-22T19:08:11Z",
+    "environment": "TESTNET_DEMO_ONLY",
+    "disclaimer": "Demo artifact on Hedera testnet. Not a certification…"
+  },
+  "record_digest": "sha256:2bf595c1…ecdb9",
+  "signature": { "alg": "Ed25519", "kid": "nomos-gx402-demo-ed25519-1",
+                 "signature_domain": "NOMOS_GX402_PROOF_OF_ACTION_V1",
+                 "canonicalization": "RFC8785-JCS/nomos-int-only-v1",
+                 "public_key_hex": "593ad93f…21e9", "signature": "<base64>" },
+  "anchor": null,
+  "verification": { "hashscan_transaction_url": "https://hashscan.io/testnet/transaction/0.0.7162784-1784746988-798231156",
+                    "mirror_transaction_url": "https://testnet.mirrornode.hedera.com/api/v1/transactions/0.0.7162784-1784746988-798231156" }
+}
+```
+
+`anchor: null` — CP-H2 sends no HCS message. That is a requirement, not an
+omission, and the receipt is fully valid without one.
+
+Files: `docs/evidence/cp-h2/{receipt,result,settlement,execute-run,dry-run}.json`
+
+---
+
+## 6. Verification results
+
+| # | Check | Result |
+|---|---|---|
+| 1 | **Mirror node** — transaction indexed, `result=SUCCESS` | ✅ |
+| 2 | **Memo** — equals `quote_id` | ✅ `q_6eb0be075ceaee4b92d86575` |
+| 3 | **Amount** — payee credited exactly the quoted amount | ✅ 5 000 000 tinybar |
+| 4 | **Payee** — alias resolved, `evm_address` matches the alias | ✅ `0x98eca0…07d5` → `0.0.9689904` |
+| 5 | **Payer** — derived from the ledger, not the facilitator's report | ✅ `0.0.9689846`, not the fee payer |
+| 6 | **Request replay** — recomputed hash matches the quote | ✅ |
+| 7 | **Policy replay** — recomputed policy hash matches the decision | ✅ |
+| 8 | **Result hash** — recomputed from a fresh execution | ✅ `sha256:3b7962cf…0c8f` |
+| 9 | **Receipt** — standalone verifier, caller-supplied key set | ✅ `VALID`, no mock warning |
+| 10 | **Tamper probe** — `atomic_amount` 5000000 → 1 | ✅ `INVALID`: `record_digest_mismatch`, `signature_invalid` |
+| 11 | **Replay** — same `(network, transaction_id)` presented twice | ✅ key `54c8b754…383e`: 1st `fresh`, 2nd `consumed`, reclaim throws `REPLAY_DETECTED` |
+| 12 | **Hollow-account completion** | ✅ `key: null` → `ECDSA_SECP256K1 025da46e…4c17` = local key |
+| 13 | **HashScan** | ⚠️ see below |
+
+### 6.1 HashScan — an honest note
+
+`curl` returns **404 for every hashscan.io URL**, including the site root and
+`/testnet/dashboard`. HashScan is a client-rendered application that serves 404
+to non-browser clients; this is not evidence that the links are broken, and it
+is not evidence that they work either. I cannot mechanically confirm them and
+will not claim otherwise.
+
+What *is* mechanically confirmed is the underlying data, from the public mirror
+node that HashScan itself reads — the transaction, both accounts, the transfers,
+the memo and the consensus timestamp are all verified above. The HashScan links
+should be checked in a browser before any submission relies on them.
+
+### 6.2 Receipt re-assembly is not idempotent — by design
+
+Running `complete-settlement` twice produced two valid receipts with different
+digests (`poa_09f572ad…` and `poa_60a1c222…`). The cause is `receipt_timestamp`,
+which honestly records when the receipt was assembled. Both are valid receipts
+for the same settlement; they differ in when they were written, not in what they
+attest.
+
+I found this by re-running the tool, which overwrote the first receipt. The
+canonical artifact is therefore `poa_60a1c2220acb7ef835dcdca8`. A `RECEIPT_EXISTS`
+guard now refuses to overwrite an existing receipt without `--force`, so a
+published digest cannot be silently invalidated again.
+
+---
+
+## 7. Tests, scan, dependencies
 
 ```
 $ npm test
-# tests 225
-# suites 53
-# pass 225
-# fail 0
-# duration_ms 268
+# tests 250   # pass 250   # fail 0
 ```
 
-New in CP-H2 — `tests/unit/real-adapter.test.ts`, 26 tests, all offline with a
-stubbed `fetch`:
-
-| Group | Tests | What it pins |
-|---|---:|---|
-| Payment requirements mapping | 3 | HBAR → `0.0.0`; HTS passthrough; a non-testnet quote cannot produce requirements at all |
-| Payment header encoding | 2 | base64-JSON round-trip; garbage fails loudly rather than yielding `{}` |
-| Facilitator discovery | 3 | picks the hedera:testnet fee payer; refuses when absent; refuses a malformed one rather than handing it to a signer |
-| Mirror helpers | 6 | id conversion; malformed id throws instead of building a wrong URL; memo decode incl. empty → `null`; **net movement sums all rows for an account**; token filtering |
-| Propagation | 3 | retries while the index lags then succeeds; budget exhaustion returns `null` not an error; a non-404 surfaces immediately instead of burning 11 retries |
-| Settlement verification | 8 | correct transfer → FINAL + `MIRROR_NODE`; short payment; transfer to the wrong account; **no memo**; someone else's quote id in the memo; consensus failure; unindexed → PENDING; mainnet refused *without any lookup* |
-| Dry run | 1 | `/settle` is never contacted |
-
-Secret scan:
+New since the last report: `tests/unit/child-records.test.ts` (9, the
+regression) and `tests/unit/alias-payee.test.ts` (16, the auto-account-creation
+path).
 
 ```
 $ npm run scan
-secret-scan: 71 files scanned
-  (35 WARN finding(s) waived by tools/secret-scan.allow.json)
-secret-scan: CLEAN
+secret-scan: 73 files scanned, 0 errors, 0 unwaived warnings — CLEAN
 ```
 
-0 errors, 0 unwaived warnings. Five new waivers were added, each for a file that
-contains a production identifier **in order to block it**: the isolated signer's
-`FORBIDDEN_KEY_PREFIXES` and the preflight gate's `FORBIDDEN_ACCOUNTS`. A test
-asserts waivers cannot spread beyond denylists, tests of denylists, and docs.
-
-### 4.1 Live read-only checks performed
-
-| Check | Result |
+| | |
 |---|---|
-| `GET /health` (facilitator) | 200, `{"status":"ok"}` |
-| `GET /supported` (facilitator) | 200, advertises `exact` on `hedera:testnet`, feePayer `0.0.7162784` |
-| `GET /network/nodes` (mirror) | 200 |
-| `GET /accounts/0xafe6…003f` | 404 — payer not yet created |
-| `GET /accounts/0x98ec…07d5` | 404 — payee not yet created |
-
-No POST was sent to the facilitator. No transaction was signed for submission.
-
-### 4.2 The gates fired correctly
-
-Both fail-closed paths were exercised and behaved as designed:
-
-```
-$ node tools/setup-env.ts
-setup-env: payer account not found for 0xafe63adc38f1a28c57f7c2b9ebc03d1472e6003f
-  → fund it at https://portal.hedera.com/faucet (testnet, valueless tokens)
-
-$ node tools/preflight-check.ts
-preflight: cannot load configuration — missing configuration: NOMOS_GX402_PAY_TO
-copy .env.example to .env and fill in the demo account ids.
-```
-
-No `.env` exists, so `run-payment.ts` cannot start in either mode. The system
-refuses to attempt a payment it is not configured for, rather than attempting
-one and failing on-chain — which would have consumed the single-payment budget.
+| Node | v22.23.0 |
+| `@x402/hedera` | 2.19.0 |
+| `@x402/core` | 2.19.0 |
+| `@hiero-ledger/sdk` | 2.85.0 (transitive) |
+| Offline core dependencies | still **0** — no test imports the SDK |
 
 ---
 
-## 5. The blocker
+## 8. Boundaries observed
 
-**Hedera testnet HBAR cannot be obtained without a human.**
-
-| Route | Status |
+| Prohibited | Observed |
 |---|---|
-| `https://portal.hedera.com/faucet` | reachable (200), but the page loads **reCAPTCHA** |
-| `https://faucet.testnet.hedera.com/api/account` (used by a 2026-04 script in the legacy estate) | **DNS no longer resolves** — the endpoint is gone |
-| Portal API keys / Personal Access Tokens | require a portal account, i.e. an interactive sign-up |
-| Auto-account creation by transferring to an alias | needs an already-funded sender — circular |
+| Further funding transfers | none — lock file untouched, 9 lines |
+| More than one x402 payment | **exactly one** |
+| Mainnet / previewnet | never contacted; unrepresentable in the schema |
+| Production changes, service restarts | none — `NRestarts=0` throughout |
+| T+72 observer changes | untouched; 696 snapshots, own schedule |
+| Access to the quarantined key | **none** — mtime still 2026-06-12 09:07:45 |
+| Secret output | none; only public keys and account ids appear anywhere |
+| GitHub push / remote | no remote configured |
+| HCS message | none; `anchor: null` |
 
-reCAPTCHA is an anti-automation control. Circumventing it, or hunting for an
-unguarded endpoint behind it, is not something I will do for a convenience —
-and a solved captcha is not evidence of anything a reviewer would value. The
-correct move is to ask.
+Production state after the work: `x402-v2` and `x402-gateway` active/enabled
+with `NRestarts=0`, `nomos-preflight` inactive/disabled (unchanged SAFEOFF),
+`hederaoracle` unchanged since 2026-07-13.
 
-### What is needed — two paste actions
+---
 
-1. Open **https://portal.hedera.com/faucet**
-2. Paste **`0xafe63adc38f1a28c57f7c2b9ebc03d1472e6003f`** (payer) → claim
-3. Paste **`0x98eca0a3f742ddc7791fc64b9cb2e226340607d5`** (payee) → claim
+## 9. Evidence index
 
-The faucet auto-creates a Hedera account for each address. The default claim is
-ample: the demo needs 0.05 HBAR of the ~100 available, and the facilitator pays
-the network fee. Both tokens are testnet tokens with no economic value.
+| Artifact | Location |
+|---|---|
+| Proof-of-action receipt | `docs/evidence/cp-h2/receipt.json` |
+| Delivered result + hash | `docs/evidence/cp-h2/result.json` |
+| Settlement + delivery + verification | `docs/evidence/cp-h2/settlement.json` |
+| Execute run (incl. the failure) | `docs/evidence/cp-h2/execute-run.json` |
+| Dry run | `docs/evidence/cp-h2/dry-run.json` |
+| Funding lock | `/root/ops/.cp_h2_funding_executed` |
+| Funding script + worker | `/root/ops/cp_h2_fund_demo_payer_once.{sh,mjs}` |
 
-### What happens after, without further decisions
+Independent verification, runnable by anyone:
 
 ```bash
-node tools/setup-env.ts        # resolves both account ids, writes .env (0600)
-node tools/preflight-check.ts  # 17 checks, read-only, must print CLEAR
-node tools/run-payment.ts      # DRY RUN — signs for real, facilitator verifies,
-                               #   stops before /settle. Nothing moves.
-node tools/run-payment.ts --execute   # the single authorised payment
+node tools/verify-receipt.ts docs/evidence/cp-h2/receipt.json \
+  nomos-gx402-demo-ed25519-1=593ad93fa6ebbdabada18f9be12f391b32c5d2c487080d8d79f156c943ea21e9
 ```
 
-`--execute` refuses if `.local/PAYMENT_EXECUTED` exists, so the one-payment
-authorisation is enforced by the code and not only by intent.
-
----
-
-## 6. Safety architecture actually in place
-
-| Control | Mechanism | Where |
-|---|---|---|
-| Dry run is the default | `--execute` must be typed; a dry run still builds, signs and has the facilitator verify — it just never calls `/settle` | `run-payment.ts` |
-| Exactly one payment | `.local/PAYMENT_EXECUTED` written on success, checked before any execute | `run-payment.ts` |
-| Testnet, asserted three times | config, adapter, signer — independently | `load-config.ts`, `real-adapter.ts`, `hedera-signer.ts` |
-| Mainnet unrepresentable | JSON-Schema `const` on `network` | `schemas.ts` |
-| Key isolation | signing happens in a child process; stdin = challenge, stdout = signature | `signer-process.ts` |
-| Production key paths refused | `FORBIDDEN_KEY_PREFIXES` in two independent loaders, incl. after `..` resolution | `signer.ts`, `signer-process.ts` |
-| Production accounts refused | `FORBIDDEN_ACCOUNTS` = `0.0.10420279`, `0.0.8509917`, `0.0.10420310` | `preflight-check.ts` |
-| Production topics refused | `FORBIDDEN_TOPIC_IDS`, incl. `0.0.10420280` | `hcs-anchor/interfaces.ts` |
-| No HCS message in CP-H2 | `anchor: false` hard-coded in the HTTP path | `http-server.ts` |
-| Amount ceiling | preflight rejects above the per-payment cap *and* above 1 HBAR outright | `preflight-check.ts` |
-| Payer ≠ payee | preflight check — a self-payment proves nothing about a transfer | `preflight-check.ts` |
-| Key file hygiene | preflight asserts mode 0600 and a `.local/` path | `preflight-check.ts` |
-| No secrets in output | `describe()` redacts; `parsePayerKey` never echoes its input; keygen prints public material only | throughout |
-
----
-
-## 7. Secrets
-
-Three private keys exist on disk, all created today, all local:
-
-```
-.local/hedera-payer.key      -rw------- 101 bytes
-.local/hedera-payee.key      -rw------- 101 bytes
-.local/receipt-signer.key    -rw------- 119 bytes
+```bash
+curl -s https://testnet.mirrornode.hedera.com/api/v1/transactions/0.0.7162784-1784746988-798231156
 ```
 
-`.gitignore` excludes `.local/` explicitly and `*.key` generically; `git
-check-ignore` confirms both rules match, and `git status` shows zero `.local`
-entries. No key value appears in this report, in any evidence file, in any log
-line, in any test fixture, or in the repository. The only key-derived values
-published anywhere are public keys and EVM addresses, which are public by
-construction.
+---
 
-`npm run scan` reports **0 ERROR-class findings** across 71 files.
+## 10. Open scope
+
+1. **HCS anchoring (CP-H7).** Not a bounty requirement, but "how well the build
+   uses Hedera rails" is a judging criterion and HCS is exactly that. The
+   interface, payload schema and topic denylist already exist.
+2. **Demo UI (CP-H8)** and the **video**, which the bounty does require.
+3. **Persistence.** Caps, replay keys and the quote store are in memory. Fine
+   for a demo; state it rather than imply otherwise.
+4. **The 402 loop end to end in one process.** The payment settled, but the
+   receipt was assembled by a second tool. Worth closing so a single
+   `run-payment --execute` produces the receipt directly — the bug that forced
+   the split is fixed, so this is now just a re-run on a future payment.
+5. **HashScan links** to be confirmed in a browser before submission.
 
 ---
 
-## 8. Production untouched
-
-| Unit | State | Restarts |
-|---|---|---|
-| `nomos-preflight-c2r-observer.timer` (**T+72**) | active / enabled | — |
-| `x402-v2.service` | active / enabled | 0 |
-| `x402-gateway.service` | active / enabled | 0 |
-| `nomos-preflight.service` | inactive / disabled (unchanged SAFEOFF) | 0 |
-| `hederaoracle.service` | active / enabled, start time unchanged | 1 (pre-existing) |
-| `receipts-api.service` | active / enabled | 0 |
-
-Not done: no service started, stopped or restarted; no unit, timer or cron
-touched; no production file edited; `/root/oraclenet/hedera_beacon.js` untouched;
-`/srv/nomos/signing` never opened; no mainnet request of any kind; no HCS
-message; no GitHub remote; nothing pushed.
-
-Everything created by this checkpoint lives under
-`/root/nomos-governed-x402-hedera`, plus `node_modules/` (git-ignored) from the
-single `npm install` of `@x402/hedera` and `@x402/core`.
-
-The T+72 observation continued undisturbed throughout — its snapshot file
-advances on its own systemd schedule, which is the observer working rather than
-this work touching it.
-
----
-
-## 9. Open scope for CP-H3
-
-CP-H3 in the original plan was the policy and spend gate. **That work is already
-done** — it shipped in CP-H1 and is wired into the real path here, with caps
-enforced before any payment and a fail-closed replay guard. So CP-H3 is
-re-scoped to what actually remains:
-
-1. **Complete this checkpoint.** Fund, dry-run, execute once, capture evidence,
-   fill §2.4 of this report. Nothing else should start before that.
-2. **Idempotency and replay against a real transaction.** The offline tests
-   cover both; a live re-presentation of the same settled transaction should be
-   demonstrated once, for the record.
-3. **Persistence.** Caps, replay keys and the quote store are in memory. A
-   restart forgets them. Acceptable for a demo, not for a claim.
-4. **CP-H7 decision.** HCS anchoring is not a bounty requirement, but "how well
-   the build uses Hedera rails" is a judging criterion and HCS is exactly that.
-   Worth building if the schedule allows after the payment is verified.
-
-**Production touch for CP-H3: none.** Unchanged from every checkpoint so far.
-
----
-
-## 10. Verdict
-
-The implementation satisfies every technical success criterion that can be
-satisfied without funds. The criteria that require a real transaction —
-transaction id, consensus timestamp, HashScan link, mirror-node verification, a
-receipt whose verifier reports VALID with no mock warning — are **not met**,
-because no payment was made.
-
-No transaction was attempted. The single-payment budget is intact and the
-one-payment lock has never been written.
-
----
-
-# CP_H2_BLOCKED_NO_PAYMENT_OR_SINGLE_FAILED_ATTEMPT
+# PASS_CP_H2_X402_DEMO_COMPLETE

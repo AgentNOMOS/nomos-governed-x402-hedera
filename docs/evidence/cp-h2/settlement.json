@@ -1,0 +1,35 @@
+{
+  "settlement": {
+    "schema": "nomos.gx402.settlement_evidence.v1",
+    "source": "MIRROR_NODE",
+    "verified": true,
+    "network": "hedera:testnet",
+    "asset": "HBAR",
+    "atomic_amount": "5000000",
+    "payer": "0.0.9689846",
+    "payee": "0.0.9689904",
+    "transaction_id": "0.0.7162784@1784746988.798231156",
+    "consensus_timestamp": "1784746993.237232768",
+    "memo": "q_6eb0be075ceaee4b92d86575",
+    "finality": "FINAL",
+    "checked_at": "2026-07-22T19:08:11Z",
+    "failure_code": null
+  },
+  "delivery": {
+    "schema": "nomos.gx402.delivery_evidence.v1",
+    "idempotency_key": "idem_528bc5d663e7d4dbf8a55699f0746492",
+    "execution_status": "SUCCEEDED",
+    "delivery_status": "DELIVERED",
+    "result_hash": "sha256:3b7962cf05770f754f3966144ce99b3dc68c302977be6c3886fe51bb45210c8f",
+    "result_media_type": "application/json",
+    "result_byte_length": 547,
+    "executed_at": "2026-07-22T19:08:11Z",
+    "failure_code": null,
+    "refund_due": false
+  },
+  "verification": {
+    "ok": true,
+    "reasons": [],
+    "mock_settlement": false
+  }
+}

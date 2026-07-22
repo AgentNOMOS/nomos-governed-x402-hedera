@@ -1,0 +1,210 @@
+{
+  "mode": "EXECUTE",
+  "started_at": "2026-07-22T19:03:11.693Z",
+  "offer": {
+    "schema": "nomos.gx402.service_offer.v1",
+    "offer_id": "evidence.basic.v1",
+    "service": {
+      "service_id": "nomos-gx402-evidence",
+      "resource_url": "http://127.0.0.1:4402/v1/evidence",
+      "http_method": "POST"
+    },
+    "description": "Synthetic agent-readiness evidence lookup, priced per call and settled on Hedera testnet.",
+    "network": "hedera:testnet",
+    "asset": "HBAR",
+    "atomic_amount": "5000000",
+    "pay_to": "0x98eca0a3f742ddc7791fc64b9cb2e226340607d5",
+    "quote_ttl_seconds": 180
+  },
+  "challenge": {
+    "error": "payment_required",
+    "schema": "nomos.gx402.payment_challenge.v1",
+    "x402_version": 2,
+    "accepts": [
+      {
+        "scheme": "exact",
+        "network": "hedera:testnet",
+        "asset": "HBAR",
+        "atomic_amount": "5000000",
+        "pay_to": "0x98eca0a3f742ddc7791fc64b9cb2e226340607d5",
+        "max_timeout_seconds": 180,
+        "resource": "http://127.0.0.1:4402/v1/evidence",
+        "memo": "q_6eb0be075ceaee4b92d86575"
+      }
+    ],
+    "nomos": {
+      "quote_id": "q_6eb0be075ceaee4b92d86575",
+      "quote_hash": "sha256:5155f479779d6c59956c709ea548f6e0efb6b5dde24ea6a0c897d8914b981aa2",
+      "request_hash": "sha256:c7dc3cdf13eeff7c42274882bb3245c073ca0adad736a49d83ddb80f78b9bbac",
+      "idempotency_key": "idem_528bc5d663e7d4dbf8a55699f0746492",
+      "issued_at": "2026-07-22T19:03:11Z",
+      "expires_at": "2026-07-22T19:06:11Z",
+      "decision_id": "ppd_0ede8b56a28eaa786ec4796a"
+    },
+    "decision_receipt": {
+      "schema": "nomos.gx402.prepayment_decision_receipt.v1",
+      "decision_id": "ppd_0ede8b56a28eaa786ec4796a",
+      "record": {
+        "request_id": "req_mrwga0d4mp2yi2",
+        "nonce": "n_mrwga0d4mklhhizt",
+        "decision": "ALLOW",
+        "decision_code": "ALLOW_WITHIN_POLICY",
+        "checks": [
+          {
+            "code": "schema_valid",
+            "class": "hard",
+            "passed": true,
+            "detail": "ok"
+          },
+          {
+            "code": "network_allowed",
+            "class": "hard",
+            "passed": true,
+            "detail": "offered=hedera:testnet allowed=hedera:testnet"
+          },
+          {
+            "code": "asset_allowed",
+            "class": "hard",
+            "passed": true,
+            "detail": "offered=HBAR allowed=HBAR"
+          },
+          {
+            "code": "payee_allowed",
+            "class": "hard",
+            "passed": true,
+            "detail": "offered=0x98eca0a3f742ddc7791fc64b9cb2e226340607d5"
+          },
+          {
+            "code": "amount_wellformed",
+            "class": "hard",
+            "passed": true,
+            "detail": "atomic_amount=5000000 (decimal string, integer only)"
+          },
+          {
+            "code": "amount_within_per_payment_cap",
+            "class": "hard",
+            "passed": true,
+            "detail": "amount=5000000 cap=10000000"
+          },
+          {
+            "code": "cumulative_cap",
+            "class": "hard",
+            "passed": true,
+            "detail": "spent=0 + 5000000 vs cap=200000000"
+          },
+          {
+            "code": "daily_count_cap",
+            "class": "hard",
+            "passed": true,
+            "detail": "day=2026-07-22 count=0 cap=50"
+          },
+          {
+            "code": "authority_scope_covers_request",
+            "class": "hard",
+            "passed": true,
+            "detail": "have=[evidence:read] need=[evidence:read]"
+          },
+          {
+            "code": "authority_not_expired",
+            "class": "hard",
+            "passed": true,
+            "detail": "valid_until=2026-07-23T19:03:11Z now=2026-07-22T19:03:11Z"
+          },
+          {
+            "code": "nonce_unused",
+            "class": "hard",
+            "passed": true,
+            "detail": "fresh"
+          },
+          {
+            "code": "amount_below_review_threshold",
+            "class": "review",
+            "passed": true,
+            "detail": "amount=5000000 review_at>=8000000 (80% of per-payment cap)"
+          }
+        ],
+        "agent_identity": {
+          "did": "did:nomos:gx402-demo-agent",
+          "public_key_hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "key_type": "Ed25519",
+          "label": "cp-h2-buyer"
+        },
+        "authority_scope": {
+          "scopes": [
+            "evidence:read"
+          ],
+          "granted_by": "did:nomos:gx402-demo-operator",
+          "valid_until": "2026-07-23T19:03:11Z",
+          "delegation_hash": null
+        },
+        "bound_terms": {
+          "offer_id": "evidence.basic.v1",
+          "resource_url": "http://127.0.0.1:4402/v1/evidence",
+          "http_method": "POST",
+          "request_hash": "sha256:c7dc3cdf13eeff7c42274882bb3245c073ca0adad736a49d83ddb80f78b9bbac",
+          "quote_hash": "sha256:dc3730690cc21c753f5750dec4ad326cb3c15f9c39cd086078b01de1c00da8ee",
+          "network": "hedera:testnet",
+          "asset": "HBAR",
+          "atomic_amount": "5000000",
+          "pay_to": "0x98eca0a3f742ddc7791fc64b9cb2e226340607d5",
+          "request_id": "req_mrwga0d4mp2yi2",
+          "nonce": "n_mrwga0d4mklhhizt",
+          "decision": "ALLOW",
+          "decision_code": "ALLOW_WITHIN_POLICY",
+          "policy_version": "nomos-gx402-demo-1.0.0"
+        },
+        "bound_terms_digest": "sha256:4cf8f5b8da154a6c9b4ab94042546e0d454d6472ce58fafbef84ae7bf1ddba80",
+        "policy_version": "nomos-gx402-demo-1.0.0",
+        "policy_hash": "sha256:aea1ba25f1ef3f8aa35e5badab77c869f5205571371f73328fe35da3e1fc9efd",
+        "issued_at": "2026-07-22T19:03:11Z",
+        "valid_until": "2026-07-22T19:06:11Z",
+        "authorizes_payment": false,
+        "environment": "TESTNET_DEMO_ONLY"
+      },
+      "record_digest": "sha256:21e2624fd66a77140026ce4eb7c5463aeca9ce29f7011dbb0eff47150ac64efd",
+      "signature": {
+        "alg": "Ed25519",
+        "kid": "nomos-gx402-demo-ed25519-1",
+        "signature_domain": "NOMOS_GX402_PREPAYMENT_DECISION_V1",
+        "canonicalization": "RFC8785-JCS/nomos-int-only-v1",
+        "public_key_hex": "593ad93fa6ebbdabada18f9be12f391b32c5d2c487080d8d79f156c943ea21e9",
+        "signature": "t7tat+QlQ4ReAVWyhF3yG2rvPb1e9RUQkb9RZndn3WbC1dJkVaG9Q2CkOtSOErsvIzXfalYfKIrFk5VGKAdYAg=="
+      }
+    }
+  },
+  "payment_required_header": "eyJzY2hlbWEiOiJub21vcy5neDQwMi5wYXltZW50X2NoYWxsZW5nZS52MSIsIng0MDJfdmVyc2lvbiI6MiwiYWNjZXB0cyI6W3sic2NoZW1lIjoiZXhhY3QiLCJuZXR3b3JrIjoiaGVkZXJhOnRlc3RuZXQiLCJhc3NldCI6IkhCQVIiLCJhdG9taWNfYW1vdW50IjoiNTAwMDAwMCIsInBheV90byI6IjB4OThlY2EwYTNmNzQyZGRjNzc5MWZjNjRiOWNiMmUyMjYzNDA2MDdkNSIsIm1heF90aW1lb3V0X3NlY29uZHMiOjE4MCwicmVzb3VyY2UiOiJodHRwOi8vMTI3LjAuMC4xOjQ0MDIvdjEvZXZpZGVuY2UiLCJtZW1vIjoicV82ZWIwYmUwNzVjZWFlZTRiOTJkODY1NzUifV0sIm5vbW9zIjp7InF1b3RlX2lkIjoicV82ZWIwYmUwNzVjZWFlZTRiOTJkODY1NzUiLCJxdW90ZV9oYXNoIjoic2hhMjU2OjUxNTVmNDc5Nzc5ZDZjNTk5NTZjNzA5ZWE1NDhmNmUwZWZiNmI1ZGRlMjRlYTZhMGM4OTdkODkxNGI5ODFhYTIiLCJyZXF1ZXN0X2hhc2giOiJzaGEyNTY6YzdkYzNjZGYxM2VlZmY3YzQyMjc0ODgyYmIzMjQ1YzA3M2NhMGFkYWQ3MzZhNDlkODNkZGI4MGY3OGI5YmJhYyIsImlkZW1wb3RlbmN5X2tleSI6ImlkZW1fNTI4YmM1ZDY2M2U3ZDRkYmY4YTU1Njk5ZjA3NDY0OTIiLCJpc3N1ZWRfYXQiOiIyMDI2LTA3LTIyVDE5OjAzOjExWiIsImV4cGlyZXNfYXQiOiIyMDI2LTA3LTIyVDE5OjA2OjExWiIsImRlY2lzaW9uX2lkIjoicHBkXzBlZGU4YjU2YTI4ZWFhNzg2ZWM0Nzk2YSJ9fQ==",
+  "payment_requirements": {
+    "scheme": "exact",
+    "network": "hedera:testnet",
+    "asset": "0.0.0",
+    "amount": "5000000",
+    "payTo": "0x98eca0a3f742ddc7791fc64b9cb2e226340607d5",
+    "maxTimeoutSeconds": 180,
+    "extra": {
+      "feePayer": "0.0.7162784"
+    }
+  },
+  "paid_status": 402,
+  "paid_body": {
+    "error": "SETTLEMENT_UNVERIFIED:amount_mismatch",
+    "settlement": {
+      "schema": "nomos.gx402.settlement_evidence.v1",
+      "source": "MIRROR_NODE",
+      "verified": false,
+      "network": "hedera:testnet",
+      "asset": "HBAR",
+      "atomic_amount": "0",
+      "payer": "0.0.0",
+      "payee": "0.0.9689904",
+      "transaction_id": "0.0.7162784@1784746988.798231156",
+      "consensus_timestamp": "1784746993.237232766",
+      "memo": null,
+      "finality": "FAILED",
+      "checked_at": "2026-07-22T19:03:14Z",
+      "failure_code": "amount_mismatch"
+    }
+  },
+  "payment_response_header": null,
+  "outcome": "EXECUTE_FAILED",
+  "finished_at": "2026-07-22T19:03:17.234Z"
+}

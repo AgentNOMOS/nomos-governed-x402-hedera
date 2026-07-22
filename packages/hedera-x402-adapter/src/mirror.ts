@@ -51,10 +51,41 @@ export interface MirrorTransaction {
   consensus_timestamp: string;
   result: string;
   name: string;
+  /** 0 for the user transaction; >0 for child records the network generated. */
+  nonce?: number;
   charged_tx_fee: number;
   memo_base64: string | null;
   transfers: MirrorTransfer[];
   token_transfers?: Array<{ token_id: string; account: string; amount: number }>;
+}
+
+/**
+ * Pick the USER transaction out of a mirror-node transaction group.
+ *
+ * `GET /transactions/{id}` returns every record sharing that id, not one record.
+ * When a transfer triggers Hedera auto-account creation the network emits child
+ * records alongside it — a CRYPTOCREATEACCOUNT for the new account and a
+ * CRYPTOUPDATEACCOUNT completing a hollow payer — and those children can sort
+ * ahead of the transfer itself.
+ *
+ * Taking `transactions[0]` therefore reads a record with no memo and no user
+ * transfers, and every downstream check then reports a mismatch against a
+ * payment that was in fact perfect. This function exists because that is
+ * exactly what happened on the first real run: a correct 0.05 HBAR transfer
+ * with the right memo was rejected because the verifier was looking at the
+ * CRYPTOUPDATEACCOUNT child.
+ *
+ * Selection order: the CRYPTOTRANSFER with nonce 0, then any nonce-0 record,
+ * then any CRYPTOTRANSFER. Returns null rather than guessing when none matches.
+ */
+export function selectUserTransaction(group: MirrorTransaction[]): MirrorTransaction | null {
+  if (!Array.isArray(group) || group.length === 0) return null;
+  return (
+    group.find((t) => t.name === "CRYPTOTRANSFER" && (t.nonce ?? 0) === 0) ??
+    group.find((t) => (t.nonce ?? 0) === 0) ??
+    group.find((t) => t.name === "CRYPTOTRANSFER") ??
+    null
+  );
 }
 
 async function getJson(url: string, timeoutMs = 15_000): Promise<unknown> {
@@ -106,7 +137,8 @@ export async function fetchTransaction(
   for (let i = 0; i < attempts; i += 1) {
     try {
       const body = (await getJson(url)) as { transactions?: MirrorTransaction[] };
-      const tx = body.transactions?.[0];
+      // NOT transactions[0] — see selectUserTransaction.
+      const tx = selectUserTransaction(body.transactions ?? []);
       if (tx) return tx;
     } catch (e) {
       // NOT_FOUND is the expected state while the index catches up. Anything

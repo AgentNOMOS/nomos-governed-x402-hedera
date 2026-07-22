@@ -2,16 +2,14 @@
 
 ### From Proof of Payment to Proof of Action
 
-> ⚠️ **CP-H2 — real Hedera path implemented, no payment made yet.** The full
-> chain is built: memo-binding signer, facilitator client, independent
-> mirror-node settlement verification, a real HTTP 402, and an isolated signer
-> process. **No transaction has been submitted to Hedera.** The run is blocked
-> on funding a fresh testnet account — the faucet is reCAPTCHA-protected and
-> that control was respected rather than worked around. Until a real payment
-> lands, artifacts remain stamped `MOCK_OFFLINE` inside their *signed* record
-> and this is **not** a finished Hedera integration.
-> See [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) and
-> [`docs/evidence/CP-H2-REPORT.md`](docs/evidence/CP-H2-REPORT.md).
+> ✅ **CP-H2 complete — a real x402 payment settled on Hedera testnet.**
+> Transaction [`0.0.7162784@1784746988.798231156`](https://hashscan.io/testnet/transaction/0.0.7162784-1784746988-798231156)
+> moved 0.05 HBAR with the quote id `q_6eb0be075ceaee4b92d86575` in the
+> transaction memo, and receipt `poa_60a1c2220acb7ef835dcdca8` binds identity,
+> policy, request, quote, payment and result — verifying as VALID with
+> `settlement_source: MIRROR_NODE`. HCS anchoring (CP-H7) and the demo UI
+> (CP-H8) are still to come.
+> See [`docs/evidence/CP-H2-REPORT.md`](docs/evidence/CP-H2-REPORT.md).
 
 ---
 
@@ -105,7 +103,7 @@ services/resource-server/      the governed flow, and a deterministic evidence s
 services/agent-client/         the buying agent (holds no key)
 apps/demo-ui/                  CP-H8
 tools/                         secret scan, schema emit, keygen, standalone verifier
-tests/{unit,integration,e2e}/  225 offline tests
+tests/{unit,integration,e2e}/  250 offline tests
 docs/                          protocol, boundaries, status, reference notes, evidence
 ```
 

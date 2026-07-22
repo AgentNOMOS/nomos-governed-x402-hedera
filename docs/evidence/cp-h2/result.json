@@ -1,0 +1,36 @@
+{
+  "result": {
+    "schema": "nomos.gx402.evidence_result.v1",
+    "subject": "hedera-x402-bounty-demo.invalid",
+    "checks": [
+      {
+        "check": "declares_x402",
+        "verdict": "PASS",
+        "basis": "fixture: x402 accepts[] advertised"
+      },
+      {
+        "check": "has_agent_card",
+        "verdict": "PASS",
+        "basis": "fixture: /.well-known/agent-card.json present"
+      },
+      {
+        "check": "publishes_jwks",
+        "verdict": "FAIL",
+        "basis": "fixture: no JWKS endpoint"
+      },
+      {
+        "check": "states_pricing",
+        "verdict": "PASS",
+        "basis": "fixture: price and asset declared"
+      }
+    ],
+    "summary": {
+      "pass": 3,
+      "fail": 1,
+      "unknown": 0
+    },
+    "generated_from": "SYNTHETIC_DETERMINISTIC_FIXTURE"
+  },
+  "result_hash": "sha256:3b7962cf05770f754f3966144ce99b3dc68c302977be6c3886fe51bb45210c8f",
+  "canonical_digest_check": "sha256:3b7962cf05770f754f3966144ce99b3dc68c302977be6c3886fe51bb45210c8f"
+}

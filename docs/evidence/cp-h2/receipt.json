@@ -1,0 +1,68 @@
+{
+  "schema": "nomos.gx402.proof_of_action_receipt.v1",
+  "receipt_version": "v1",
+  "receipt_id": "poa_60a1c2220acb7ef835dcdca8",
+  "record": {
+    "agent_identity": {
+      "did": "did:nomos:gx402-demo-agent",
+      "public_key_hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "key_type": "Ed25519",
+      "label": "cp-h2-buyer"
+    },
+    "authority_scope": {
+      "scopes": [
+        "evidence:read"
+      ],
+      "granted_by": "did:nomos:gx402-demo-operator",
+      "valid_until": "2026-07-23T19:03:11Z",
+      "delegation_hash": null
+    },
+    "service_identity": {
+      "service_id": "nomos-gx402-evidence",
+      "resource_url": "http://127.0.0.1:4402/v1/evidence",
+      "http_method": "POST"
+    },
+    "offer_id": "evidence.basic.v1",
+    "policy_decision": "ALLOW",
+    "policy_version": "nomos-gx402-demo-1.0.0",
+    "policy_hash": "sha256:aea1ba25f1ef3f8aa35e5badab77c869f5205571371f73328fe35da3e1fc9efd",
+    "decision_id": "ppd_0ede8b56a28eaa786ec4796a",
+    "request_hash": "sha256:c7dc3cdf13eeff7c42274882bb3245c073ca0adad736a49d83ddb80f78b9bbac",
+    "quote_id": "q_6eb0be075ceaee4b92d86575",
+    "quote_hash": "sha256:5155f479779d6c59956c709ea548f6e0efb6b5dde24ea6a0c897d8914b981aa2",
+    "idempotency_key": "idem_528bc5d663e7d4dbf8a55699f0746492",
+    "nonce": "n_mrwga0d4mklhhizt",
+    "network": "hedera:testnet",
+    "asset": "HBAR",
+    "atomic_amount": "5000000",
+    "payer": "0.0.9689846",
+    "payee": "0.0.9689904",
+    "hedera_transaction_id": "0.0.7162784@1784746988.798231156",
+    "consensus_timestamp": "1784746993.237232768",
+    "settlement_source": "MIRROR_NODE",
+    "settlement_finality": "FINAL",
+    "execution_status": "SUCCEEDED",
+    "delivery_status": "DELIVERED",
+    "result_hash": "sha256:3b7962cf05770f754f3966144ce99b3dc68c302977be6c3886fe51bb45210c8f",
+    "refund_due": false,
+    "receipt_timestamp": "2026-07-22T19:08:11Z",
+    "environment": "TESTNET_DEMO_ONLY",
+    "disclaimer": "Demo artifact on Hedera testnet. Not a certification, not legal advice, not a guarantee of service quality."
+  },
+  "record_digest": "sha256:2bf595c132c714fc375449c66eb05bc5e0d236d8f04cfba717b00fe9f71ecdb9",
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "nomos-gx402-demo-ed25519-1",
+    "signature_domain": "NOMOS_GX402_PROOF_OF_ACTION_V1",
+    "canonicalization": "RFC8785-JCS/nomos-int-only-v1",
+    "public_key_hex": "593ad93fa6ebbdabada18f9be12f391b32c5d2c487080d8d79f156c943ea21e9",
+    "signature": "g4/qw2XFfu8m09JNc8fOCVCXc0LB8vSV1/24AI3e97nWiQMUk4zjimUms5twwO0KIKYf5qfbRax5TejLF7CRCg=="
+  },
+  "anchor": null,
+  "verification": {
+    "hashscan_transaction_url": "https://hashscan.io/testnet/transaction/0.0.7162784-1784746988-798231156",
+    "mirror_transaction_url": "https://testnet.mirrornode.hedera.com/api/v1/transactions/0.0.7162784-1784746988-798231156",
+    "hashscan_topic_url": null,
+    "mirror_topic_message_url": null
+  }
+}
