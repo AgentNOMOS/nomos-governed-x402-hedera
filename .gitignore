@@ -1,0 +1,60 @@
+# ── Secrets: never, under any circumstance ──────────────────────────────────
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.der
+*.jks
+*.keystore
+id_ed25519*
+id_ecdsa*
+id_rsa*
+*private*key*
+*privatekey*
+*secret*
+*.seed
+*mnemonic*
+wallet.json
+wallets/
+*wallet*.json
+!*.example.json
+.hedera-*
+operator.json
+keys/
+secrets/
+
+# ── Generated receipts / anchors: may embed account ids, tx ids, hashes ─────
+# Only fixtures under tests/**/fixtures/ and docs/evidence/ are tracked, and
+# those must be synthetic. Runtime output is never committed.
+out/
+runtime/
+receipts/
+anchors/
+*.receipt.json
+*.anchor.json
+
+# ── Local logs ──────────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-error.log*
+.secret-scan-report.json
+
+# ── Dependencies / build output ─────────────────────────────────────────────
+node_modules/
+dist/
+build/
+coverage/
+.tsbuildinfo
+*.tsbuildinfo
+.cache/
+
+# ── Editor / OS noise ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

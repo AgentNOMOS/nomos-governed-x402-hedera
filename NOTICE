@@ -1,0 +1,30 @@
+NOMOS Governed x402 on Hedera
+Copyright 2026 NOMOS Governed x402 on Hedera contributors
+
+This product includes software developed for the Hedera x402 bounty.
+
+── Provenance ───────────────────────────────────────────────────────────────
+
+All source in this repository is original work written for this project.
+
+No code was copied from any third-party repository. Two projects linked from
+the Hedera x402 bounty page were read as *technical reference* — for protocol
+facts such as package names, header names, network identifiers and message
+ordering — and are credited here for that reason:
+
+  * matevszm/x402-hedera-example
+    Read for protocol facts only. At the time of review (2026-07-22) this
+    repository carried NO LICENSE file, so no code from it may be copied, and
+    none was. Facts about a public protocol are not copyrightable expression.
+
+  * hedera-dev/scaffold-hbar (branch: templates/x402-pay-per-use)
+    MIT licensed. Read for structure and dependency facts. No code copied; if
+    any is adopted later, the MIT notice will be reproduced here.
+
+The `@x402/hedera` package and the Hedera Consensus Service are used through
+their public interfaces. They are dependencies, not vendored code.
+
+── Runtime dependencies ─────────────────────────────────────────────────────
+
+At CP-H1 this project has ZERO third-party runtime or development
+dependencies. It runs entirely on the Node.js standard library.

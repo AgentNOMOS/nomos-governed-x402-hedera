@@ -1,0 +1,33 @@
+{
+  "//": [
+    "This project runs under Node's native type-stripping — there is no emit and no",
+    "build step. `allowImportingTsExtensions` + `noEmit` mirror that: imports carry",
+    "the .ts extension because that is what Node resolves at runtime.",
+    "`erasableSyntaxOnly` makes tsc reject any construct Node cannot strip (enums,",
+    "namespaces, parameter properties, decorators), so a type-check failure here is",
+    "exactly a runtime failure there.",
+    "Run `npx tsc` for a type check; it is optional and requires a network install."
+  ],
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+
+    "strict": true,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": ["packages/**/*.ts", "services/**/*.ts", "tests/**/*.ts", "tools/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

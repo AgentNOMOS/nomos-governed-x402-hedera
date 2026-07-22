@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nomos.example/schemas/gx402/service_offer.v1.json",
+  "title": "NOMOS GX402 Service Offer v1",
+  "description": "What a resource server publishes for discovery. Contains no secrets and no pricing history.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "offer_id",
+    "service",
+    "network",
+    "asset",
+    "atomic_amount",
+    "pay_to",
+    "quote_ttl_seconds"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "nomos.gx402.service_offer.v1"
+    },
+    "offer_id": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 128
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_id",
+        "resource_url",
+        "http_method"
+      ],
+      "properties": {
+        "service_id": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128
+        },
+        "resource_url": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 512
+        },
+        "http_method": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ]
+        }
+      }
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "network": {
+      "type": "string",
+      "const": "hedera:testnet",
+      "description": "Pinned to Hedera testnet. Mainnet documents are unrepresentable by construction."
+    },
+    "asset": {
+      "type": "string",
+      "pattern": "^(HBAR|[0-9]+\\.[0-9]+\\.[0-9]+)$",
+      "description": "HBAR, or an HTS token id in shard.realm.num form."
+    },
+    "atomic_amount": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "description": "Price in atomic units (tinybar for HBAR). Decimal string, never a float."
+    },
+    "pay_to": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Receiver account. Hedera ids are 0.0.x — never an 0x EVM address."
+    },
+    "quote_ttl_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 600
+    }
+  }
+}

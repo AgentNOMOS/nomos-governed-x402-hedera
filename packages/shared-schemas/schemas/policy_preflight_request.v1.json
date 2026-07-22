@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nomos.example/schemas/gx402/policy_preflight_request.v1.json",
+  "title": "NOMOS GX402 Policy Preflight Request v1",
+  "description": "Everything the policy engine needs. Deliberately excludes the request BODY — only its hash travels.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "request_id",
+    "nonce",
+    "agent_identity",
+    "authority_scope",
+    "offer",
+    "request_hash",
+    "requested_at"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "nomos.gx402.policy_preflight_request.v1"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128
+    },
+    "nonce": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128,
+      "description": "Anti-replay nonce, unique per request."
+    },
+    "agent_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "did",
+        "public_key_hex",
+        "key_type"
+      ],
+      "description": "Who is acting. No human names, no emails, no free text.",
+      "properties": {
+        "did": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 256,
+          "description": "Stable agent identifier, e.g. did:key:z…"
+        },
+        "public_key_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Raw Ed25519 public key of the agent."
+        },
+        "key_type": {
+          "type": "string",
+          "const": "Ed25519"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Optional non-identifying display label."
+        }
+      }
+    },
+    "authority_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scopes",
+        "granted_by",
+        "valid_until"
+      ],
+      "description": "What the agent was authorised to do, and by whom, and until when.",
+      "properties": {
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+:[a-z0-9_*]+$"
+          },
+          "description": "Capability strings such as evidence:read."
+        },
+        "granted_by": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 256,
+          "description": "DID of the granting authority."
+        },
+        "valid_until": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+          "description": "Delegation expiry. Past expiry the policy denies fail-closed."
+        },
+        "delegation_hash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Optional digest of the full delegation document.",
+          "nullable": true
+        }
+      }
+    },
+    "offer": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://nomos.example/schemas/gx402/service_offer.v1.json",
+      "title": "NOMOS GX402 Service Offer v1",
+      "description": "What a resource server publishes for discovery. Contains no secrets and no pricing history.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "offer_id",
+        "service",
+        "network",
+        "asset",
+        "atomic_amount",
+        "pay_to",
+        "quote_ttl_seconds"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "nomos.gx402.service_offer.v1"
+        },
+        "offer_id": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128
+        },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "service_id",
+            "resource_url",
+            "http_method"
+          ],
+          "properties": {
+            "service_id": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 128
+            },
+            "resource_url": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 512
+            },
+            "http_method": {
+              "type": "string",
+              "enum": [
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE"
+              ]
+            }
+          }
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "network": {
+          "type": "string",
+          "const": "hedera:testnet",
+          "description": "Pinned to Hedera testnet. Mainnet documents are unrepresentable by construction."
+        },
+        "asset": {
+          "type": "string",
+          "pattern": "^(HBAR|[0-9]+\\.[0-9]+\\.[0-9]+)$",
+          "description": "HBAR, or an HTS token id in shard.realm.num form."
+        },
+        "atomic_amount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$",
+          "description": "Price in atomic units (tinybar for HBAR). Decimal string, never a float."
+        },
+        "pay_to": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Receiver account. Hedera ids are 0.0.x — never an 0x EVM address."
+        },
+        "quote_ttl_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600
+        }
+      }
+    },
+    "request_hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Canonical digest of the request body the agent intends to send."
+    },
+    "requested_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "Client clock. The engine uses its own clock for expiry decisions."
+    }
+  }
+}

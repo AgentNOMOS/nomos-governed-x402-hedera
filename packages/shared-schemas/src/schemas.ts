@@ -1,0 +1,535 @@
+/**
+ * Canonical, versioned schemas for NOMOS Governed x402 on Hedera.
+ *
+ * This TypeScript module is the SINGLE SOURCE OF TRUTH. The JSON files under
+ * `packages/shared-schemas/schemas/` are generated from it (`npm run schemas:emit`)
+ * for interop and for anyone who wants to validate a receipt without running
+ * our code.
+ *
+ * Design rules that apply to every schema here:
+ *   - `additionalProperties: false` everywhere. An unbound field is an unsigned
+ *     field, and an unsigned field is a hole in the evidence.
+ *   - Atomic amounts are DECIMAL STRINGS, never numbers. tinybar values exceed
+ *     nothing dangerous today, but "amount as float" is the classic money bug
+ *     and the type system should make it impossible rather than unlikely.
+ *   - `network` is pinned to `hedera:testnet` by const, not by convention.
+ *     A mainnet document cannot even be represented.
+ *   - No free-text request or result content. Only canonical hashes.
+ */
+
+export const SCHEMA_VERSION = "v1" as const;
+const BASE = "https://nomos.example/schemas/gx402";
+
+// ── shared primitives ───────────────────────────────────────────────────────
+
+/** Hedera entity id: shard.realm.num — accounts, topics and tokens all share it. */
+export const PATTERN_ENTITY_ID = "^[0-9]+\\.[0-9]+\\.[0-9]+$";
+/** Hedera transaction id: payer@validStartSeconds.nanos */
+export const PATTERN_TX_ID = "^[0-9]+\\.[0-9]+\\.[0-9]+@[0-9]+\\.[0-9]+$";
+/** Consensus timestamp: seconds.nanos */
+export const PATTERN_CONSENSUS_TS = "^[0-9]+\\.[0-9]+$";
+/** Our only digest format. */
+export const PATTERN_DIGEST = "^sha256:[0-9a-f]{64}$";
+/** Atomic amount: unsigned decimal integer as a string. Leading zeros rejected. */
+export const PATTERN_ATOMIC = "^(0|[1-9][0-9]*)$";
+export const PATTERN_ISO8601 = "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$";
+
+/** The only network this project will ever emit. Enforced by const, not by hope. */
+export const NETWORK = "hedera:testnet" as const;
+
+/** Assets the demo policy may ever allow. HTS tokens are named by entity id. */
+export const ASSET_HBAR = "HBAR" as const;
+
+const digest = (description: string) => ({ type: "string", pattern: PATTERN_DIGEST, description });
+const entityId = (description: string) => ({ type: "string", pattern: PATTERN_ENTITY_ID, description });
+const atomic = (description: string) => ({ type: "string", pattern: PATTERN_ATOMIC, description });
+const isoTime = (description: string) => ({ type: "string", pattern: PATTERN_ISO8601, description });
+
+/** Anchored on both ends deliberately: a partially-anchored alternation would
+ *  accept `NOTHBAR0.0.1`, which is exactly the kind of near-miss an asset
+ *  allowlist exists to catch. */
+export const PATTERN_ASSET = "^(HBAR|[0-9]+\\.[0-9]+\\.[0-9]+)$";
+
+const assetSchema = {
+  type: "string",
+  pattern: PATTERN_ASSET,
+  description: "HBAR, or an HTS token id in shard.realm.num form.",
+};
+
+const networkSchema = {
+  type: "string",
+  const: NETWORK,
+  description: "Pinned to Hedera testnet. Mainnet documents are unrepresentable by construction.",
+};
+
+const agentIdentitySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["did", "public_key_hex", "key_type"],
+  description: "Who is acting. No human names, no emails, no free text.",
+  properties: {
+    did: { type: "string", minLength: 8, maxLength: 256, description: "Stable agent identifier, e.g. did:key:z…" },
+    public_key_hex: { type: "string", pattern: "^[0-9a-f]{64}$", description: "Raw Ed25519 public key of the agent." },
+    key_type: { type: "string", const: "Ed25519" },
+    label: { type: "string", maxLength: 64, description: "Optional non-identifying display label." },
+  },
+};
+
+const authorityScopeSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["scopes", "granted_by", "valid_until"],
+  description: "What the agent was authorised to do, and by whom, and until when.",
+  properties: {
+    scopes: {
+      type: "array",
+      minItems: 1,
+      maxItems: 16,
+      items: { type: "string", pattern: "^[a-z0-9_]+:[a-z0-9_*]+$" },
+      description: "Capability strings such as evidence:read.",
+    },
+    granted_by: { type: "string", minLength: 8, maxLength: 256, description: "DID of the granting authority." },
+    valid_until: isoTime("Delegation expiry. Past expiry the policy denies fail-closed."),
+    delegation_hash: { ...digest("Optional digest of the full delegation document."), nullable: true },
+  },
+};
+
+const serviceIdentitySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["service_id", "resource_url", "http_method"],
+  properties: {
+    service_id: { type: "string", minLength: 3, maxLength: 128 },
+    resource_url: { type: "string", minLength: 8, maxLength: 512 },
+    http_method: { type: "string", enum: ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+  },
+};
+
+const signatureBlockSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["alg", "kid", "signature_domain", "canonicalization", "public_key_hex", "signature"],
+  properties: {
+    alg: { type: "string", const: "Ed25519" },
+    kid: {
+      type: "string",
+      minLength: 1,
+      maxLength: 128,
+      description: "Key id. A verifier MUST resolve this against a published key set rather than trusting public_key_hex.",
+    },
+    signature_domain: { type: "string", minLength: 8, maxLength: 128 },
+    canonicalization: { type: "string", const: "RFC8785-JCS/nomos-int-only-v1" },
+    public_key_hex: { type: "string", pattern: "^[0-9a-f]{64}$" },
+    signature: { type: "string", pattern: "^[A-Za-z0-9+/]+={0,2}$", description: "base64 Ed25519 signature." },
+  },
+};
+
+// ── 1. service offer ────────────────────────────────────────────────────────
+
+export const SERVICE_OFFER_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: `${BASE}/service_offer.${SCHEMA_VERSION}.json`,
+  title: "NOMOS GX402 Service Offer v1",
+  description: "What a resource server publishes for discovery. Contains no secrets and no pricing history.",
+  type: "object",
+  additionalProperties: false,
+  required: ["schema", "offer_id", "service", "network", "asset", "atomic_amount", "pay_to", "quote_ttl_seconds"],
+  properties: {
+    schema: { type: "string", const: `nomos.gx402.service_offer.${SCHEMA_VERSION}` },
+    offer_id: { type: "string", minLength: 3, maxLength: 128 },
+    service: serviceIdentitySchema,
+    description: { type: "string", maxLength: 512 },
+    network: networkSchema,
+    asset: assetSchema,
+    atomic_amount: atomic("Price in atomic units (tinybar for HBAR). Decimal string, never a float."),
+    pay_to: entityId("Receiver account. Hedera ids are 0.0.x — never an 0x EVM address."),
+    quote_ttl_seconds: { type: "integer", minimum: 1, maximum: 600 },
+  },
+} as const satisfies Record<string, unknown>;
+
+// ── 2. policy preflight request ─────────────────────────────────────────────
+
+export const POLICY_PREFLIGHT_REQUEST_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: `${BASE}/policy_preflight_request.${SCHEMA_VERSION}.json`,
+  title: "NOMOS GX402 Policy Preflight Request v1",
+  description: "Everything the policy engine needs. Deliberately excludes the request BODY — only its hash travels.",
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schema", "request_id", "nonce", "agent_identity", "authority_scope",
+    "offer", "request_hash", "requested_at",
+  ],
+  properties: {
+    schema: { type: "string", const: `nomos.gx402.policy_preflight_request.${SCHEMA_VERSION}` },
+    request_id: { type: "string", minLength: 8, maxLength: 128 },
+    nonce: { type: "string", minLength: 8, maxLength: 128, description: "Anti-replay nonce, unique per request." },
+    agent_identity: agentIdentitySchema,
+    authority_scope: authorityScopeSchema,
+    offer: SERVICE_OFFER_SCHEMA,
+    request_hash: digest("Canonical digest of the request body the agent intends to send."),
+    requested_at: isoTime("Client clock. The engine uses its own clock for expiry decisions."),
+  },
+} as const satisfies Record<string, unknown>;
+
+// ── 3. prepayment decision receipt ──────────────────────────────────────────
+
+/**
+ * The v2 lesson from the production stack, carried forward: ALLOW, DENY and
+ * REVIEW carry the SAME complete binding. A DENY whose binding is weaker than
+ * an ALLOW is a DENY nobody can audit.
+ */
+export const PREPAYMENT_DECISION_RECEIPT_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: `${BASE}/prepayment_decision_receipt.${SCHEMA_VERSION}.json`,
+  title: "NOMOS GX402 Prepayment Decision Receipt v1",
+  description:
+    "Signed record of a pre-payment policy decision. NEVER authorises, signs or executes a payment. " +
+    "Identical binding for ALLOW, DENY and REVIEW.",
+  type: "object",
+  additionalProperties: false,
+  required: ["schema", "decision_id", "record", "record_digest", "signature"],
+  properties: {
+    schema: { type: "string", const: `nomos.gx402.prepayment_decision_receipt.${SCHEMA_VERSION}` },
+    decision_id: { type: "string", pattern: "^ppd_[0-9a-f]{24}$" },
+    record_digest: digest("Digest over `record`."),
+    signature: signatureBlockSchema,
+    record: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "request_id", "nonce", "decision", "decision_code", "checks",
+        "agent_identity", "authority_scope", "bound_terms", "bound_terms_digest",
+        "policy_version", "policy_hash", "issued_at", "valid_until",
+        "authorizes_payment", "environment",
+      ],
+      properties: {
+        request_id: { type: "string", minLength: 8, maxLength: 128 },
+        nonce: { type: "string", minLength: 8, maxLength: 128 },
+        decision: { type: "string", enum: ["ALLOW", "DENY", "REVIEW"] },
+        decision_code: { type: "string", minLength: 2, maxLength: 64 },
+        checks: {
+          type: "array",
+          maxItems: 64,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["code", "class", "passed"],
+            properties: {
+              code: { type: "string", minLength: 2, maxLength: 64 },
+              class: { type: "string", enum: ["hard", "review", "technical"] },
+              passed: { type: "boolean" },
+              detail: { type: "string", maxLength: 256 },
+            },
+          },
+        },
+        agent_identity: agentIdentitySchema,
+        authority_scope: authorityScopeSchema,
+        bound_terms: {
+          type: "object",
+          additionalProperties: false,
+          description:
+            "The complete bound field set — present and identically shaped for ALLOW, DENY and REVIEW. " +
+            "A verifier can recompute bound_terms_digest from this object alone.",
+          required: [
+            "offer_id", "resource_url", "http_method", "request_hash", "quote_hash",
+            "network", "asset", "atomic_amount", "pay_to", "request_id", "nonce",
+            "decision", "decision_code", "policy_version",
+          ],
+          properties: {
+            offer_id: { type: "string", minLength: 1, maxLength: 128 },
+            resource_url: { type: "string", minLength: 1, maxLength: 512 },
+            http_method: { type: "string", minLength: 3, maxLength: 8 },
+            request_hash: digest("Digest of the request body."),
+            quote_hash: digest("Digest of the quote/offer the decision was made against."),
+            network: { type: "string", minLength: 1, maxLength: 64 },
+            asset: { type: "string", minLength: 1, maxLength: 64 },
+            atomic_amount: { type: "string", minLength: 1, maxLength: 40 },
+            pay_to: { type: "string", minLength: 1, maxLength: 64 },
+            request_id: { type: "string", minLength: 1, maxLength: 128 },
+            nonce: { type: "string", minLength: 1, maxLength: 128 },
+            decision: { type: "string", enum: ["ALLOW", "DENY", "REVIEW"] },
+            decision_code: { type: "string", minLength: 1, maxLength: 64 },
+            policy_version: { type: "string", minLength: 1, maxLength: 64 },
+          },
+        },
+        bound_terms_digest: digest("Digest over bound_terms. Independently reproducible."),
+        policy_version: { type: "string", minLength: 1, maxLength: 64 },
+        policy_hash: digest("Digest of the effective policy document."),
+        issued_at: isoTime("Issue time."),
+        valid_until: isoTime("issued_at + at most quote_ttl_seconds."),
+        authorizes_payment: { type: "boolean", const: false },
+        environment: { type: "string", const: "TESTNET_DEMO_ONLY" },
+      },
+    },
+  },
+} as const satisfies Record<string, unknown>;
+
+// ── 4. x402 payment challenge ───────────────────────────────────────────────
+
+export const PAYMENT_CHALLENGE_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: `${BASE}/payment_challenge.${SCHEMA_VERSION}.json`,
+  title: "NOMOS GX402 Payment Challenge v1",
+  description:
+    "The body served alongside HTTP 402. `accepts` mirrors the x402 shape; " +
+    "`nomos` carries the governance binding that plain x402 has no place for.",
+  type: "object",
+  additionalProperties: false,
+  required: ["schema", "x402_version", "accepts", "nomos"],
+  properties: {
+    schema: { type: "string", const: `nomos.gx402.payment_challenge.${SCHEMA_VERSION}` },
+    x402_version: { type: "integer", minimum: 1, maximum: 99 },
+    accepts: {
+      type: "array",
+      minItems: 1,
+      maxItems: 4,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["scheme", "network", "asset", "atomic_amount", "pay_to", "max_timeout_seconds", "resource"],
+        properties: {
+          scheme: { type: "string", const: "exact" },
+          network: networkSchema,
+          asset: assetSchema,
+          atomic_amount: atomic("Exact amount the payer must transfer."),
+          pay_to: entityId("Receiver account id."),
+          max_timeout_seconds: { type: "integer", minimum: 1, maximum: 600 },
+          resource: { type: "string", minLength: 8, maxLength: 512 },
+          memo: {
+            type: "string",
+            maxLength: 100,
+            description:
+              "MUST be set to quote_id. This is the on-chain link between the transfer and the quote — " +
+              "the field a verifier reads back from the mirror node.",
+          },
+        },
+      },
+    },
+    nomos: {
+      type: "object",
+      additionalProperties: false,
+      required: ["quote_id", "quote_hash", "request_hash", "idempotency_key", "issued_at", "expires_at", "decision_id"],
+      properties: {
+        quote_id: { type: "string", pattern: "^q_[0-9a-f]{24}$" },
+        quote_hash: digest("Digest of the quote object."),
+        request_hash: digest("Digest of the request body this quote is valid for."),
+        idempotency_key: { type: "string", pattern: "^idem_[0-9a-f]{32}$" },
+        issued_at: isoTime("Quote issue time."),
+        expires_at: isoTime("Hard expiry. Past this the server refuses fail-closed."),
+        decision_id: { type: "string", pattern: "^ppd_[0-9a-f]{24}$" },
+      },
+    },
+  },
+} as const satisfies Record<string, unknown>;
+
+// ── 5. settlement evidence ──────────────────────────────────────────────────
+
+export const SETTLEMENT_EVIDENCE_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: `${BASE}/settlement_evidence.${SCHEMA_VERSION}.json`,
+  title: "NOMOS GX402 Settlement Evidence v1",
+  description:
+    "What the verifier established about the payment. `source` distinguishes a real mirror-node " +
+    "observation from a MOCK — this field is what keeps an offline demo honest.",
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schema", "source", "verified", "network", "asset", "atomic_amount",
+    "payer", "payee", "transaction_id", "finality", "checked_at",
+  ],
+  properties: {
+    schema: { type: "string", const: `nomos.gx402.settlement_evidence.${SCHEMA_VERSION}` },
+    source: {
+      type: "string",
+      enum: ["MOCK_OFFLINE", "MIRROR_NODE"],
+      description: "MOCK_OFFLINE means NOTHING was observed on-chain. Never present it as a real payment.",
+    },
+    verified: { type: "boolean" },
+    network: networkSchema,
+    asset: assetSchema,
+    atomic_amount: atomic("Amount actually observed, not the amount expected."),
+    payer: entityId("Sending account observed on-chain."),
+    payee: entityId("Receiving account observed on-chain."),
+    transaction_id: { type: "string", pattern: PATTERN_TX_ID },
+    consensus_timestamp: { type: "string", pattern: PATTERN_CONSENSUS_TS, nullable: true },
+    memo: { type: "string", maxLength: 100, nullable: true, description: "Observed transaction memo — expected to equal quote_id." },
+    finality: { type: "string", enum: ["FINAL", "PENDING", "FAILED"] },
+    checked_at: isoTime("When the verifier looked."),
+    failure_code: { type: "string", maxLength: 64, nullable: true },
+  },
+} as const satisfies Record<string, unknown>;
+
+// ── 6. delivery evidence ────────────────────────────────────────────────────
+
+export const DELIVERY_EVIDENCE_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: `${BASE}/delivery_evidence.${SCHEMA_VERSION}.json`,
+  title: "NOMOS GX402 Delivery Evidence v1",
+  description: "What was executed and handed over. Carries hashes only — never the result content.",
+  type: "object",
+  additionalProperties: false,
+  required: ["schema", "idempotency_key", "execution_status", "delivery_status", "result_hash", "executed_at"],
+  properties: {
+    schema: { type: "string", const: `nomos.gx402.delivery_evidence.${SCHEMA_VERSION}` },
+    idempotency_key: { type: "string", pattern: "^idem_[0-9a-f]{32}$" },
+    execution_status: { type: "string", enum: ["SUCCEEDED", "FAILED"] },
+    delivery_status: { type: "string", enum: ["DELIVERED", "NOT_DELIVERED"] },
+    result_hash: {
+      ...digest("Canonical digest of the delivered result. `sha256:` of the empty-object canon when nothing was delivered."),
+    },
+    result_media_type: { type: "string", maxLength: 128, nullable: true },
+    result_byte_length: { type: "integer", minimum: 0, nullable: true },
+    executed_at: isoTime("Execution completion time."),
+    failure_code: { type: "string", maxLength: 64, nullable: true },
+    refund_due: {
+      type: "boolean",
+      description: "True when payment landed but execution failed. The demo does NOT auto-refund; it records the obligation.",
+    },
+  },
+} as const satisfies Record<string, unknown>;
+
+// ── 7. HCS anchor reference ─────────────────────────────────────────────────
+
+export const HCS_ANCHOR_REFERENCE_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: `${BASE}/hcs_anchor_reference.${SCHEMA_VERSION}.json`,
+  title: "NOMOS GX402 HCS Anchor Reference v1",
+  description:
+    "Proof that a receipt digest was submitted to a Hedera Consensus Service topic. " +
+    "Anchoring is ADDITIVE: a receipt without an anchor is still fully valid.",
+  type: "object",
+  additionalProperties: false,
+  required: ["schema", "source", "status", "network", "anchored_digest"],
+  properties: {
+    schema: { type: "string", const: `nomos.gx402.hcs_anchor_reference.${SCHEMA_VERSION}` },
+    source: { type: "string", enum: ["MOCK_OFFLINE", "HEDERA_HCS"] },
+    status: { type: "string", enum: ["ANCHORED", "PENDING", "FAILED"] },
+    network: networkSchema,
+    anchored_digest: digest("MUST equal the receipt's record_digest."),
+    topic_id: { ...entityId("Topic the message was submitted to."), nullable: true },
+    sequence_number: { type: "integer", minimum: 1, nullable: true },
+    transaction_id: { type: "string", pattern: PATTERN_TX_ID, nullable: true },
+    consensus_timestamp: { type: "string", pattern: PATTERN_CONSENSUS_TS, nullable: true },
+    anchored_at: { ...isoTime("Local submit time."), nullable: true },
+    hashscan_url: { type: "string", maxLength: 512, nullable: true },
+    mirror_url: { type: "string", maxLength: 512, nullable: true },
+    failure_code: { type: "string", maxLength: 64, nullable: true },
+  },
+} as const satisfies Record<string, unknown>;
+
+// ── 8. proof-of-action receipt ──────────────────────────────────────────────
+
+export const PROOF_OF_ACTION_RECEIPT_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: `${BASE}/proof_of_action_receipt.${SCHEMA_VERSION}.json`,
+  title: "NOMOS GX402 Proof-of-Action Receipt v1",
+  description:
+    "The deliverable. Binds identity, authority, policy decision, request, quote, payment and " +
+    "delivery into one signed, independently verifiable record. Contains hashes only — never " +
+    "request or result content, never personal data.",
+  type: "object",
+  additionalProperties: false,
+  required: ["schema", "receipt_version", "receipt_id", "record", "record_digest", "signature"],
+  properties: {
+    schema: { type: "string", const: `nomos.gx402.proof_of_action_receipt.${SCHEMA_VERSION}` },
+    receipt_version: { type: "string", const: SCHEMA_VERSION },
+    receipt_id: { type: "string", pattern: "^poa_[0-9a-f]{24}$" },
+    record_digest: digest("Digest over `record`. This is the value that gets anchored to HCS."),
+    signature: signatureBlockSchema,
+    anchor: { ...HCS_ANCHOR_REFERENCE_SCHEMA, nullable: true },
+    verification: {
+      type: "object",
+      additionalProperties: false,
+      required: ["hashscan_transaction_url"],
+      description: "Human-checkable links. Derived, never authoritative — the hashes are.",
+      properties: {
+        hashscan_transaction_url: { type: "string", maxLength: 512 },
+        hashscan_topic_url: { type: "string", maxLength: 512, nullable: true },
+        mirror_transaction_url: { type: "string", maxLength: 512, nullable: true },
+        mirror_topic_message_url: { type: "string", maxLength: 512, nullable: true },
+      },
+    },
+    record: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "agent_identity", "authority_scope", "service_identity", "offer_id",
+        "policy_decision", "policy_version", "policy_hash", "decision_id",
+        "request_hash", "quote_id", "quote_hash", "idempotency_key", "nonce",
+        "network", "asset", "atomic_amount", "payer", "payee",
+        "hedera_transaction_id", "settlement_source", "settlement_finality",
+        "execution_status", "delivery_status", "result_hash",
+        "receipt_timestamp", "environment", "disclaimer",
+      ],
+      properties: {
+        agent_identity: agentIdentitySchema,
+        authority_scope: authorityScopeSchema,
+        service_identity: serviceIdentitySchema,
+        offer_id: { type: "string", minLength: 1, maxLength: 128 },
+
+        policy_decision: { type: "string", enum: ["ALLOW", "DENY", "REVIEW"] },
+        policy_version: { type: "string", minLength: 1, maxLength: 64 },
+        policy_hash: digest("Digest of the effective policy document."),
+        decision_id: { type: "string", pattern: "^ppd_[0-9a-f]{24}$" },
+
+        request_hash: digest("Canonical digest of the request body."),
+        quote_id: { type: "string", pattern: "^q_[0-9a-f]{24}$" },
+        quote_hash: digest("Canonical digest of the quote."),
+        idempotency_key: { type: "string", pattern: "^idem_[0-9a-f]{32}$" },
+        nonce: { type: "string", minLength: 8, maxLength: 128 },
+
+        network: networkSchema,
+        asset: assetSchema,
+        atomic_amount: atomic("Amount settled, in atomic units, as a decimal string."),
+        payer: entityId("Paying account."),
+        payee: entityId("Receiving account."),
+
+        hedera_transaction_id: { type: "string", pattern: PATTERN_TX_ID },
+        consensus_timestamp: { type: "string", pattern: PATTERN_CONSENSUS_TS, nullable: true },
+        settlement_source: { type: "string", enum: ["MOCK_OFFLINE", "MIRROR_NODE"] },
+        settlement_finality: { type: "string", enum: ["FINAL", "PENDING", "FAILED"] },
+
+        execution_status: { type: "string", enum: ["SUCCEEDED", "FAILED"] },
+        delivery_status: { type: "string", enum: ["DELIVERED", "NOT_DELIVERED"] },
+        result_hash: digest("Canonical digest of the delivered result."),
+        refund_due: { type: "boolean" },
+
+        receipt_timestamp: isoTime("When this receipt was assembled."),
+        environment: { type: "string", const: "TESTNET_DEMO_ONLY" },
+        disclaimer: { type: "string", minLength: 8, maxLength: 512 },
+      },
+    },
+  },
+} as const satisfies Record<string, unknown>;
+
+// ── reusable sub-shapes (exported for validators that need them standalone) ──
+
+export const AGENT_IDENTITY_SHAPE = agentIdentitySchema;
+export const AUTHORITY_SCOPE_SHAPE = authorityScopeSchema;
+export const SERVICE_IDENTITY_SHAPE = serviceIdentitySchema;
+export const SIGNATURE_BLOCK_SHAPE = signatureBlockSchema;
+
+// ── registry ────────────────────────────────────────────────────────────────
+
+export const ALL_SCHEMAS = {
+  service_offer: SERVICE_OFFER_SCHEMA,
+  policy_preflight_request: POLICY_PREFLIGHT_REQUEST_SCHEMA,
+  prepayment_decision_receipt: PREPAYMENT_DECISION_RECEIPT_SCHEMA,
+  payment_challenge: PAYMENT_CHALLENGE_SCHEMA,
+  settlement_evidence: SETTLEMENT_EVIDENCE_SCHEMA,
+  delivery_evidence: DELIVERY_EVIDENCE_SCHEMA,
+  hcs_anchor_reference: HCS_ANCHOR_REFERENCE_SCHEMA,
+  proof_of_action_receipt: PROOF_OF_ACTION_RECEIPT_SCHEMA,
+} as const;
+
+export type SchemaName = keyof typeof ALL_SCHEMAS;
+
+/** Signature domains. One per signed artifact — never reused across schemas. */
+export const DOMAIN_PREPAYMENT_DECISION = "NOMOS_GX402_PREPAYMENT_DECISION_V1";
+export const DOMAIN_PROOF_OF_ACTION = "NOMOS_GX402_PROOF_OF_ACTION_V1";
+
+export const CANONICALIZATION_ID = "RFC8785-JCS/nomos-int-only-v1";
+export const ENVIRONMENT = "TESTNET_DEMO_ONLY";
+export const DISCLAIMER =
+  "Demo artifact on Hedera testnet. Not a certification, not legal advice, not a guarantee of service quality.";

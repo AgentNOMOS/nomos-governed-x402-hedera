@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nomos.example/schemas/gx402/settlement_evidence.v1.json",
+  "title": "NOMOS GX402 Settlement Evidence v1",
+  "description": "What the verifier established about the payment. `source` distinguishes a real mirror-node observation from a MOCK — this field is what keeps an offline demo honest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "source",
+    "verified",
+    "network",
+    "asset",
+    "atomic_amount",
+    "payer",
+    "payee",
+    "transaction_id",
+    "finality",
+    "checked_at"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "nomos.gx402.settlement_evidence.v1"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "MOCK_OFFLINE",
+        "MIRROR_NODE"
+      ],
+      "description": "MOCK_OFFLINE means NOTHING was observed on-chain. Never present it as a real payment."
+    },
+    "verified": {
+      "type": "boolean"
+    },
+    "network": {
+      "type": "string",
+      "const": "hedera:testnet",
+      "description": "Pinned to Hedera testnet. Mainnet documents are unrepresentable by construction."
+    },
+    "asset": {
+      "type": "string",
+      "pattern": "^(HBAR|[0-9]+\\.[0-9]+\\.[0-9]+)$",
+      "description": "HBAR, or an HTS token id in shard.realm.num form."
+    },
+    "atomic_amount": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "description": "Amount actually observed, not the amount expected."
+    },
+    "payer": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Sending account observed on-chain."
+    },
+    "payee": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Receiving account observed on-chain."
+    },
+    "transaction_id": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+@[0-9]+\\.[0-9]+$"
+    },
+    "consensus_timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "nullable": true
+    },
+    "memo": {
+      "type": "string",
+      "maxLength": 100,
+      "nullable": true,
+      "description": "Observed transaction memo — expected to equal quote_id."
+    },
+    "finality": {
+      "type": "string",
+      "enum": [
+        "FINAL",
+        "PENDING",
+        "FAILED"
+      ]
+    },
+    "checked_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "When the verifier looked."
+    },
+    "failure_code": {
+      "type": "string",
+      "maxLength": 64,
+      "nullable": true
+    }
+  }
+}

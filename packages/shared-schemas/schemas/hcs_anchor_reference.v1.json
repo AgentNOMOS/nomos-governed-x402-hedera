@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nomos.example/schemas/gx402/hcs_anchor_reference.v1.json",
+  "title": "NOMOS GX402 HCS Anchor Reference v1",
+  "description": "Proof that a receipt digest was submitted to a Hedera Consensus Service topic. Anchoring is ADDITIVE: a receipt without an anchor is still fully valid.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "source",
+    "status",
+    "network",
+    "anchored_digest"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "nomos.gx402.hcs_anchor_reference.v1"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "MOCK_OFFLINE",
+        "HEDERA_HCS"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ANCHORED",
+        "PENDING",
+        "FAILED"
+      ]
+    },
+    "network": {
+      "type": "string",
+      "const": "hedera:testnet",
+      "description": "Pinned to Hedera testnet. Mainnet documents are unrepresentable by construction."
+    },
+    "anchored_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "MUST equal the receipt's record_digest."
+    },
+    "topic_id": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Topic the message was submitted to.",
+      "nullable": true
+    },
+    "sequence_number": {
+      "type": "integer",
+      "minimum": 1,
+      "nullable": true
+    },
+    "transaction_id": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+@[0-9]+\\.[0-9]+$",
+      "nullable": true
+    },
+    "consensus_timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "nullable": true
+    },
+    "anchored_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "Local submit time.",
+      "nullable": true
+    },
+    "hashscan_url": {
+      "type": "string",
+      "maxLength": 512,
+      "nullable": true
+    },
+    "mirror_url": {
+      "type": "string",
+      "maxLength": 512,
+      "nullable": true
+    },
+    "failure_code": {
+      "type": "string",
+      "maxLength": 64,
+      "nullable": true
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "nomos-governed-x402-hedera",
+  "version": "0.1.0-cp-h1",
+  "private": true,
+  "description": "NOMOS Governed x402 on Hedera \u2014 From Proof of Payment to Proof of Action",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "scripts": {
+    "test": "node --test tests/unit/*.test.ts tests/integration/*.test.ts tests/e2e/*.test.ts",
+    "test:unit": "node --test tests/unit/*.test.ts",
+    "test:integration": "node --test tests/integration/*.test.ts",
+    "test:e2e": "node --test tests/e2e/*.test.ts",
+    "scan": "node tools/secret-scan.ts",
+    "schemas:emit": "node tools/emit-schemas.ts",
+    "keygen": "node tools/keygen.ts",
+    "verify": "node tools/verify-receipt.ts",
+    "check": "npm run scan && npm test"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "x-runtime-note": [
+    "This package has ZERO dependencies on purpose. Everything in CP-H0/CP-H1 runs",
+    "on Node's built-ins: `node:crypto` for Ed25519 and SHA-256, `node:test` for the",
+    "test runner, and Node's native TypeScript type-stripping so there is no build",
+    "step. That keeps the offline governance core auditable line-by-line and means a",
+    "reviewer can clone and run `npm test` with no install and no network.",
+    "CP-H2 adds exactly one runtime dependency family: @x402/hedera (and its",
+    "@hiero-ledger/sdk peer) for the real Hedera payment path."
+  ]
+}

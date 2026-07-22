@@ -1,0 +1,353 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nomos.example/schemas/gx402/prepayment_decision_receipt.v1.json",
+  "title": "NOMOS GX402 Prepayment Decision Receipt v1",
+  "description": "Signed record of a pre-payment policy decision. NEVER authorises, signs or executes a payment. Identical binding for ALLOW, DENY and REVIEW.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "decision_id",
+    "record",
+    "record_digest",
+    "signature"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "nomos.gx402.prepayment_decision_receipt.v1"
+    },
+    "decision_id": {
+      "type": "string",
+      "pattern": "^ppd_[0-9a-f]{24}$"
+    },
+    "record_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Digest over `record`."
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alg",
+        "kid",
+        "signature_domain",
+        "canonicalization",
+        "public_key_hex",
+        "signature"
+      ],
+      "properties": {
+        "alg": {
+          "type": "string",
+          "const": "Ed25519"
+        },
+        "kid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Key id. A verifier MUST resolve this against a published key set rather than trusting public_key_hex."
+        },
+        "signature_domain": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "canonicalization": {
+          "type": "string",
+          "const": "RFC8785-JCS/nomos-int-only-v1"
+        },
+        "public_key_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "signature": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]+={0,2}$",
+          "description": "base64 Ed25519 signature."
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_id",
+        "nonce",
+        "decision",
+        "decision_code",
+        "checks",
+        "agent_identity",
+        "authority_scope",
+        "bound_terms",
+        "bound_terms_digest",
+        "policy_version",
+        "policy_hash",
+        "issued_at",
+        "valid_until",
+        "authorizes_payment",
+        "environment"
+      ],
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "nonce": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "ALLOW",
+            "DENY",
+            "REVIEW"
+          ]
+        },
+        "decision_code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64
+        },
+        "checks": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "class",
+              "passed"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 64
+              },
+              "class": {
+                "type": "string",
+                "enum": [
+                  "hard",
+                  "review",
+                  "technical"
+                ]
+              },
+              "passed": {
+                "type": "boolean"
+              },
+              "detail": {
+                "type": "string",
+                "maxLength": 256
+              }
+            }
+          }
+        },
+        "agent_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "did",
+            "public_key_hex",
+            "key_type"
+          ],
+          "description": "Who is acting. No human names, no emails, no free text.",
+          "properties": {
+            "did": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 256,
+              "description": "Stable agent identifier, e.g. did:key:z…"
+            },
+            "public_key_hex": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "Raw Ed25519 public key of the agent."
+            },
+            "key_type": {
+              "type": "string",
+              "const": "Ed25519"
+            },
+            "label": {
+              "type": "string",
+              "maxLength": 64,
+              "description": "Optional non-identifying display label."
+            }
+          }
+        },
+        "authority_scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scopes",
+            "granted_by",
+            "valid_until"
+          ],
+          "description": "What the agent was authorised to do, and by whom, and until when.",
+          "properties": {
+            "scopes": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 16,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+:[a-z0-9_*]+$"
+              },
+              "description": "Capability strings such as evidence:read."
+            },
+            "granted_by": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 256,
+              "description": "DID of the granting authority."
+            },
+            "valid_until": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+              "description": "Delegation expiry. Past expiry the policy denies fail-closed."
+            },
+            "delegation_hash": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "description": "Optional digest of the full delegation document.",
+              "nullable": true
+            }
+          }
+        },
+        "bound_terms": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The complete bound field set — present and identically shaped for ALLOW, DENY and REVIEW. A verifier can recompute bound_terms_digest from this object alone.",
+          "required": [
+            "offer_id",
+            "resource_url",
+            "http_method",
+            "request_hash",
+            "quote_hash",
+            "network",
+            "asset",
+            "atomic_amount",
+            "pay_to",
+            "request_id",
+            "nonce",
+            "decision",
+            "decision_code",
+            "policy_version"
+          ],
+          "properties": {
+            "offer_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "resource_url": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "http_method": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 8
+            },
+            "request_hash": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "description": "Digest of the request body."
+            },
+            "quote_hash": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "description": "Digest of the quote/offer the decision was made against."
+            },
+            "network": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "asset": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "atomic_amount": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            },
+            "pay_to": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "nonce": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "decision": {
+              "type": "string",
+              "enum": [
+                "ALLOW",
+                "DENY",
+                "REVIEW"
+              ]
+            },
+            "decision_code": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "policy_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        },
+        "bound_terms_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Digest over bound_terms. Independently reproducible."
+        },
+        "policy_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "policy_hash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Digest of the effective policy document."
+        },
+        "issued_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+          "description": "Issue time."
+        },
+        "valid_until": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+          "description": "issued_at + at most quote_ttl_seconds."
+        },
+        "authorizes_payment": {
+          "type": "boolean",
+          "const": false
+        },
+        "environment": {
+          "type": "string",
+          "const": "TESTNET_DEMO_ONLY"
+        }
+      }
+    }
+  }
+}
