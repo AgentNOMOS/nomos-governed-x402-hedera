@@ -15,12 +15,14 @@
  *   the transaction memo · plus the things that would waste a payment: does the
  *   payer exist, is it funded, does the facilitator actually serve this network.
  */
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+
+import { PrivateKey } from "@x402/hedera";
 
 import { loadConfig, describe, type DemoConfig } from "./load-config.ts";
 import { fetchAccount } from "../packages/hedera-x402-adapter/src/mirror.ts";
-import { RealHederaX402Adapter, TESTNET } from "../packages/hedera-x402-adapter/src/real-adapter.ts";
+import { RealHederaX402Adapter, TESTNET, isEvmAlias } from "../packages/hedera-x402-adapter/src/real-adapter.ts";
 import { FORBIDDEN_TOPIC_IDS } from "../packages/hcs-anchor/src/interfaces.ts";
 
 /** Accounts from the pre-existing production estate. Never usable here. */
@@ -138,15 +140,60 @@ async function run(): Promise<number> {
     add("payer_account_exists", false, `mirror lookup failed: ${(e as Error).message}`);
   }
 
+  // ── payee: an existing account, OR an alias we can prove we control ──────
+  //
+  // Hedera auto-account creation means a transfer to an EVM address alias
+  // CREATES that account. So a payee that does not exist yet is acceptable —
+  // but ONLY on one condition: the alias must be derivable from a demo key we
+  // hold locally. Otherwise "the payee will be created" is indistinguishable
+  // from "the money goes to an address nobody can open", which is the same
+  // thing as burning it.
+  //
+  // That derivation check is what makes the relaxed gate safe. It is not a
+  // weaker check than "the account exists"; it is a different one, and for an
+  // uncreated account it is the stronger of the two, because it proves key
+  // custody rather than mere existence.
   try {
     const payee = await fetchAccount(cfg.payTo, cfg.mirrorUrl);
-    add(
-      "payee_account_exists",
-      payee !== null && !payee.deleted,
-      payee ? `${payee.account} deleted=${payee.deleted}` : `${cfg.payTo} not found`,
-    );
+
+    if (payee && !payee.deleted) {
+      add("payee_reachable", true, `exists: ${payee.account} (alias ${payee.evm_address ?? "none"})`);
+      add("payee_alias_derivable", true, "not required — the account already exists", false);
+    } else if (isEvmAlias(cfg.payTo)) {
+      add(
+        "payee_reachable",
+        true,
+        `${cfg.payTo} not yet created — will be created by Hedera auto-account creation on payment`,
+      );
+
+      // Prove we hold the key behind the alias.
+      const payeeKeyPath = resolve(".local/hedera-payee.key");
+      if (!existsSync(payeeKeyPath)) {
+        add("payee_alias_derivable", false, `no local key at ${payeeKeyPath} to derive the alias from`);
+      } else {
+        const derived = `0x${PrivateKey.fromStringECDSA(readFileSync(payeeKeyPath, "utf8").trim()).publicKey.toEvmAddress()}`;
+        add(
+          "payee_alias_derivable",
+          derived.toLowerCase() === cfg.payTo.toLowerCase(),
+          derived.toLowerCase() === cfg.payTo.toLowerCase()
+            ? `${cfg.payTo} derives from .local/hedera-payee.key — the account will be openable`
+            : `configured ${cfg.payTo} does NOT derive from the local payee key`,
+        );
+        const mode = statSync(payeeKeyPath).mode & 0o777;
+        add("payee_key_mode_0600", mode === 0o600, `mode=0${mode.toString(8)}`);
+      }
+
+      add(
+        "auto_creation_cost_acknowledged",
+        true,
+        "the facilitator pays an extra account-creation fee; its aliasPolicy may still refuse — the dry run settles that at zero cost",
+        false,
+      );
+    } else {
+      add("payee_reachable", false, `${cfg.payTo} not found and is not a derivable EVM alias`);
+    }
   } catch (e) {
-    add("payee_account_exists", false, `mirror lookup failed: ${(e as Error).message}`);
+    add("payee_reachable", false, `mirror lookup failed: ${(e as Error).message}`);
   }
 
   // ── report ────────────────────────────────────────────────────────────────

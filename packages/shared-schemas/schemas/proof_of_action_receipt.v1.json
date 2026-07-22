@@ -394,12 +394,12 @@
         "payer": {
           "type": "string",
           "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-          "description": "Paying account."
+          "description": "Paying account, as debited on the ledger."
         },
         "payee": {
           "type": "string",
           "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-          "description": "Receiving account."
+          "description": "Receiving account, as credited on the ledger. Never an alias: a receipt names the account that exists, not the address it was created from."
         },
         "hedera_transaction_id": {
           "type": "string",

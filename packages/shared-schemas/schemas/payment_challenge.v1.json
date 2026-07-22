@@ -59,8 +59,8 @@
           },
           "pay_to": {
             "type": "string",
-            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-            "description": "Receiver account id."
+            "pattern": "^([0-9]+\\.[0-9]+\\.[0-9]+|0x[0-9a-f]{40})$",
+            "description": "Receiver account id, or an EVM address alias to be auto-created."
           },
           "max_timeout_seconds": {
             "type": "integer",

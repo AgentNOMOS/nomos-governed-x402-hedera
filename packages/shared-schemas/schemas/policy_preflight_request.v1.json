@@ -181,8 +181,8 @@
         },
         "pay_to": {
           "type": "string",
-          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-          "description": "Receiver account. Hedera ids are 0.0.x — never an 0x EVM address."
+          "pattern": "^([0-9]+\\.[0-9]+\\.[0-9]+|0x[0-9a-f]{40})$",
+          "description": "Receiver: a Hedera account id (0.0.x), or a 0x EVM address alias when the receiver is to be created by Hedera auto-account creation on first payment."
         },
         "quote_ttl_seconds": {
           "type": "integer",

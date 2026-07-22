@@ -57,7 +57,7 @@
     "payee": {
       "type": "string",
       "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-      "description": "Receiving account observed on-chain."
+      "description": "Receiving account observed on-chain. Always a real 0.0.x — an alias has been resolved to its created account by the time settlement is observed."
     },
     "transaction_id": {
       "type": "string",

@@ -42,12 +42,18 @@ import { buildHashScanLinks } from "./hashscan.ts";
 import { HBAR_ASSET_ID } from "./interfaces.ts";
 import {
   decodeMemo,
+  fetchAccount,
   fetchTransaction,
   netHbarForAccount,
   netTokenForAccount,
   MIRROR_TESTNET_BASE,
   type MirrorLookupOptions,
 } from "./mirror.ts";
+
+/** True for a 20-byte EVM address alias (as opposed to a 0.0.x account id). */
+export function isEvmAlias(value: string): boolean {
+  return /^0x[0-9a-f]{40}$/.test(value);
+}
 
 export const X402_VERSION = 2;
 export const TESTNET = "hedera:testnet";
@@ -282,7 +288,9 @@ export class RealHederaX402Adapter implements HederaX402Adapter {
         asset: query.expected_asset,
         atomic_amount: "0",
         payer: "0.0.0",
-        payee: query.expected_payee,
+        // 0.0.0 rather than the alias: the settlement schema requires a real
+        // account id, and no account exists to name in a failure case.
+        payee: isEvmAlias(query.expected_payee) ? "0.0.0" : query.expected_payee,
         transaction_id: query.transaction_id,
         consensus_timestamp: null,
         memo: null,
@@ -306,12 +314,32 @@ export class RealHederaX402Adapter implements HederaX402Adapter {
     const failures: string[] = [];
     if (tx.result !== "SUCCESS") failures.push(`consensus_result_${tx.result.toLowerCase()}`);
 
+    // ── resolve an alias payee ────────────────────────────────────────────
+    // When the quote named an EVM address, the transfer has just CREATED that
+    // account (Hedera auto-account creation). The ledger rows name the created
+    // `0.0.x`, not the alias, so comparing against the alias directly would
+    // always report "the payee received nothing". Resolve it first — and note
+    // that the resolution itself is evidence: the mirror node confirming that
+    // this account id carries that EVM alias is what ties the created account
+    // back to the key the quote committed to.
+    let payeeAccountId = query.expected_payee;
+    if (isEvmAlias(query.expected_payee)) {
+      const resolved = await fetchAccount(query.expected_payee, base);
+      if (!resolved || resolved.deleted) {
+        return fail("payee_alias_not_created", { finality: "PENDING" });
+      }
+      if ((resolved.evm_address ?? "").toLowerCase() !== query.expected_payee.toLowerCase()) {
+        return fail("payee_alias_mismatch", { finality: "FAILED" });
+      }
+      payeeAccountId = resolved.account;
+    }
+
     const isHbar = query.expected_asset === "HBAR" || query.expected_asset === HBAR_ASSET_ID;
     const expected = BigInt(query.expected_atomic_amount);
 
     const creditedToPayee = isHbar
-      ? netHbarForAccount(tx, query.expected_payee)
-      : netTokenForAccount(tx, query.expected_asset, query.expected_payee);
+      ? netHbarForAccount(tx, payeeAccountId)
+      : netTokenForAccount(tx, query.expected_asset, payeeAccountId);
     if (creditedToPayee !== expected) failures.push("amount_mismatch");
 
     // The payer is whoever was debited by at least the transferred amount. It is
@@ -335,7 +363,9 @@ export class RealHederaX402Adapter implements HederaX402Adapter {
       asset: query.expected_asset,
       atomic_amount: creditedToPayee > 0n ? creditedToPayee.toString() : "0",
       payer,
-      payee: query.expected_payee,
+      // Always the resolved account id: a receipt names the account that
+      // exists, not the address it was created from.
+      payee: payeeAccountId,
       transaction_id: query.transaction_id,
       consensus_timestamp: tx.consensus_timestamp ?? null,
       memo,

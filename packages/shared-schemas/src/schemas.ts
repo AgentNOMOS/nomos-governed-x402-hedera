@@ -40,8 +40,24 @@ export const NETWORK = "hedera:testnet" as const;
 /** Assets the demo policy may ever allow. HTS tokens are named by entity id. */
 export const ASSET_HBAR = "HBAR" as const;
 
+/**
+ * Account id, OR a 20-byte EVM address alias.
+ *
+ * The alias form exists for exactly one case: Hedera auto-account creation. A
+ * transfer to an alias that has no account yet CREATES that account. That lets a
+ * demo pay a receiver that does not exist at quote time — which is the situation
+ * when a faucet's daily limit is exhausted.
+ *
+ * Deliberately allowed ONLY on the offer/quote/challenge side. The receipt's
+ * `payee` stays strictly `0.0.x`, because by the time a receipt exists the
+ * account has been created and the ledger knows its real id. An alias in a
+ * receipt would be a claim about an account rather than a reference to one.
+ */
+export const PATTERN_ACCOUNT_OR_ALIAS = "^([0-9]+\\.[0-9]+\\.[0-9]+|0x[0-9a-f]{40})$";
+
 const digest = (description: string) => ({ type: "string", pattern: PATTERN_DIGEST, description });
 const entityId = (description: string) => ({ type: "string", pattern: PATTERN_ENTITY_ID, description });
+const accountOrAlias = (description: string) => ({ type: "string", pattern: PATTERN_ACCOUNT_OR_ALIAS, description });
 const atomic = (description: string) => ({ type: "string", pattern: PATTERN_ATOMIC, description });
 const isoTime = (description: string) => ({ type: "string", pattern: PATTERN_ISO8601, description });
 
@@ -142,7 +158,10 @@ export const SERVICE_OFFER_SCHEMA = {
     network: networkSchema,
     asset: assetSchema,
     atomic_amount: atomic("Price in atomic units (tinybar for HBAR). Decimal string, never a float."),
-    pay_to: entityId("Receiver account. Hedera ids are 0.0.x — never an 0x EVM address."),
+    pay_to: accountOrAlias(
+      "Receiver: a Hedera account id (0.0.x), or a 0x EVM address alias when the receiver " +
+      "is to be created by Hedera auto-account creation on first payment.",
+    ),
     quote_ttl_seconds: { type: "integer", minimum: 1, maximum: 600 },
   },
 } as const satisfies Record<string, unknown>;
@@ -293,7 +312,7 @@ export const PAYMENT_CHALLENGE_SCHEMA = {
           network: networkSchema,
           asset: assetSchema,
           atomic_amount: atomic("Exact amount the payer must transfer."),
-          pay_to: entityId("Receiver account id."),
+          pay_to: accountOrAlias("Receiver account id, or an EVM address alias to be auto-created."),
           max_timeout_seconds: { type: "integer", minimum: 1, maximum: 600 },
           resource: { type: "string", minLength: 8, maxLength: 512 },
           memo: {
@@ -350,7 +369,10 @@ export const SETTLEMENT_EVIDENCE_SCHEMA = {
     asset: assetSchema,
     atomic_amount: atomic("Amount actually observed, not the amount expected."),
     payer: entityId("Sending account observed on-chain."),
-    payee: entityId("Receiving account observed on-chain."),
+    payee: entityId(
+      "Receiving account observed on-chain. Always a real 0.0.x — an alias has been " +
+      "resolved to its created account by the time settlement is observed.",
+    ),
     transaction_id: { type: "string", pattern: PATTERN_TX_ID },
     consensus_timestamp: { type: "string", pattern: PATTERN_CONSENSUS_TS, nullable: true },
     memo: { type: "string", maxLength: 100, nullable: true, description: "Observed transaction memo — expected to equal quote_id." },
@@ -482,8 +504,11 @@ export const PROOF_OF_ACTION_RECEIPT_SCHEMA = {
         network: networkSchema,
         asset: assetSchema,
         atomic_amount: atomic("Amount settled, in atomic units, as a decimal string."),
-        payer: entityId("Paying account."),
-        payee: entityId("Receiving account."),
+        payer: entityId("Paying account, as debited on the ledger."),
+        payee: entityId(
+          "Receiving account, as credited on the ledger. Never an alias: a receipt names " +
+          "the account that exists, not the address it was created from.",
+        ),
 
         hedera_transaction_id: { type: "string", pattern: PATTERN_TX_ID },
         consensus_timestamp: { type: "string", pattern: PATTERN_CONSENSUS_TS, nullable: true },
