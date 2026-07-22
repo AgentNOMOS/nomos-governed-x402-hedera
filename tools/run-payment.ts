@@ -27,7 +27,7 @@
  * stdin is the challenge and whose stdout is the signature.
  */
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { loadConfig, type DemoConfig } from "./load-config.ts";
@@ -94,6 +94,25 @@ function policyFor(cfg: DemoConfig): PolicyDocument {
     // review threshold, so the happy path is a clean ALLOW rather than a REVIEW.
     review_threshold_percent: 80,
   };
+}
+
+/**
+ * Record that the single authorised payment has been spent.
+ *
+ * Idempotent and called as early as possible: the budget is gone once a
+ * transaction exists, regardless of what happens downstream.
+ */
+function markPaymentSpent(transactionId: string, receiptId: string | null): void {
+  if (existsSync(EXECUTED_MARKER)) return;
+  mkdirSync(resolve(".local"), { recursive: true });
+  const tmp = `${EXECUTED_MARKER}.tmp.${process.pid}`;
+  writeFileSync(
+    tmp,
+    `${transactionId}\n${new Date().toISOString()}\nreceipt=${receiptId ?? "pending"}\n`,
+    { mode: 0o600 },
+  );
+  renameSync(tmp, EXECUTED_MARKER);
+  console.log(`\n   one-payment marker written (${transactionId}) — further --execute runs are blocked.`);
 }
 
 /** Delegate signing to the isolated child process. Returns the header value. */
@@ -239,9 +258,25 @@ async function main(): Promise<number> {
       return paidRes.status === 402 ? 0 : 1;
     }
 
+    // The one-payment budget is consumed the moment a transaction exists on
+    // chain — NOT when the receipt turns out to be good. Writing the marker
+    // only on a fully verified receipt is how the first real run left the
+    // budget looking unspent after it had actually been spent: settlement
+    // succeeded, the verifier rejected it over a child-record bug, and this
+    // function returned before the marker was written.
+    const settledTxId =
+      (paidBody?.receipt?.record as any)?.hedera_transaction_id ?? paidBody?.settlement?.transaction_id;
+    if (settledTxId) markPaymentSpent(settledTxId, paidBody?.receipt?.receipt_id ?? null);
+
     if (paidRes.status !== 200) {
       evidence.outcome = "EXECUTE_FAILED";
       console.error(`\nPAYMENT DID NOT COMPLETE: ${JSON.stringify(paidBody).slice(0, 500)}`);
+      if (settledTxId) {
+        console.error(`\nA TRANSACTION EXISTS: ${settledTxId}`);
+        console.error("The payment budget is spent. Do NOT re-run --execute.");
+        console.error("Complete the receipt instead:");
+        console.error(`  node tools/complete-settlement.ts "${settledTxId}"`);
+      }
       return 1;
     }
 
@@ -271,16 +306,6 @@ async function main(): Promise<number> {
     evidence.receipt = receipt;
     evidence.verification = verification;
     evidence.outcome = verification.ok && !verification.mock_settlement ? "PAYMENT_VERIFIED" : "RECEIPT_PROBLEM";
-
-    if (verification.ok && !verification.mock_settlement) {
-      mkdirSync(resolve(".local"), { recursive: true });
-      writeFileSync(
-        EXECUTED_MARKER,
-        `${receipt.record.hedera_transaction_id}\n${new Date().toISOString()}\n`,
-        { mode: 0o600 },
-      );
-      console.log("\n   one-payment marker written — further --execute runs are blocked.");
-    }
 
     return verification.ok && !verification.mock_settlement ? 0 : 1;
   } finally {
