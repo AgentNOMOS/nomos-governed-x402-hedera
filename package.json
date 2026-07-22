@@ -17,17 +17,24 @@
     "schemas:emit": "node tools/emit-schemas.ts",
     "keygen": "node tools/keygen.ts",
     "verify": "node tools/verify-receipt.ts",
-    "check": "npm run scan && npm test"
+    "check": "npm run scan && npm test",
+    "hedera:keygen": "node tools/hedera-keygen.ts",
+    "hedera:resolve": "node tools/resolve-account.ts",
+    "hedera:preflight": "node tools/preflight-check.ts",
+    "hedera:dryrun": "node tools/run-payment.ts",
+    "hedera:execute": "node tools/run-payment.ts --execute"
   },
-  "dependencies": {},
-  "devDependencies": {},
+  "dependencies": {
+    "@x402/core": "2.19.0",
+    "@x402/hedera": "2.19.0"
+  },
   "x-runtime-note": [
-    "This package has ZERO dependencies on purpose. Everything in CP-H0/CP-H1 runs",
-    "on Node's built-ins: `node:crypto` for Ed25519 and SHA-256, `node:test` for the",
-    "test runner, and Node's native TypeScript type-stripping so there is no build",
-    "step. That keeps the offline governance core auditable line-by-line and means a",
-    "reviewer can clone and run `npm test` with no install and no network.",
-    "CP-H2 adds exactly one runtime dependency family: @x402/hedera (and its",
-    "@hiero-ledger/sdk peer) for the real Hedera payment path."
+    "The offline governance core (packages/shared-schemas, nomos-policy,",
+    "evidence-receipt, hcs-anchor, and the mock adapter) still has ZERO",
+    "dependencies and runs on Node built-ins alone \u2014 `npm test` needs no install.",
+    "CP-H2 adds exactly one dependency family, @x402/hedera and its @x402/core",
+    "peer, used only by the REAL Hedera path: hedera-signer.ts, real-adapter.ts,",
+    "the signer process and the tools/ scripts. Nothing under tests/ imports it,",
+    "which is why the test suite keeps working with node_modules deleted."
   ]
 }

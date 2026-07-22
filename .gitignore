@@ -23,6 +23,7 @@ wallets/
 !*.example.json
 .hedera-*
 operator.json
+.local/
 keys/
 secrets/
 

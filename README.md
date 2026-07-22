@@ -2,13 +2,16 @@
 
 ### From Proof of Payment to Proof of Action
 
-> ⚠️ **CP-H1 — offline core only.** The governance chain below is implemented,
-> tested and verifiable today. The **payment and anchor legs are MOCK/OFFLINE**:
-> nothing has been submitted to Hedera, no transaction exists, and every
-> artifact this repo can currently produce is stamped `MOCK_OFFLINE` inside its
-> *signed* record. This is **not** a finished Hedera integration and must not be
-> presented as one until CP-H2 lands real testnet transactions with HashScan
-> proofs. See [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md).
+> ⚠️ **CP-H2 — real Hedera path implemented, no payment made yet.** The full
+> chain is built: memo-binding signer, facilitator client, independent
+> mirror-node settlement verification, a real HTTP 402, and an isolated signer
+> process. **No transaction has been submitted to Hedera.** The run is blocked
+> on funding a fresh testnet account — the faucet is reCAPTCHA-protected and
+> that control was respected rather than worked around. Until a real payment
+> lands, artifacts remain stamped `MOCK_OFFLINE` inside their *signed* record
+> and this is **not** a finished Hedera integration.
+> See [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) and
+> [`docs/evidence/CP-H2-REPORT.md`](docs/evidence/CP-H2-REPORT.md).
 
 ---
 
@@ -47,9 +50,11 @@ Three things, in descending order of how much they matter:
 
 ## Quick start
 
-Requires **Node ≥ 22.6**. There is nothing to install — the offline core has
-**zero dependencies** and runs on Node's standard library, using native
-TypeScript type-stripping so there is no build step.
+Requires **Node ≥ 22.6**. The offline core still needs nothing installed — it
+runs on Node's standard library with native TypeScript type-stripping, so
+`npm test` works on a fresh clone with no build step and no network. The real
+Hedera path adds two packages (`@x402/hedera`, `@x402/core`); no test imports
+them, which is why the suite keeps passing with `node_modules` deleted.
 
 ```bash
 git clone <this repo> && cd nomos-governed-x402-hedera
@@ -100,7 +105,7 @@ services/resource-server/      the governed flow, and a deterministic evidence s
 services/agent-client/         the buying agent (holds no key)
 apps/demo-ui/                  CP-H8
 tools/                         secret scan, schema emit, keygen, standalone verifier
-tests/{unit,integration,e2e}/  199 offline tests
+tests/{unit,integration,e2e}/  225 offline tests
 docs/                          protocol, boundaries, status, reference notes, evidence
 ```
 

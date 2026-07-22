@@ -27,6 +27,9 @@
  *   - a facilitator acts as fee payer, so the resource server holds no key
  */
 
+/** Asset id x402 uses for native HBAR. Amounts are then tinybars (1 HBAR = 1e8). */
+export const HBAR_ASSET_ID = "0.0.0";
+
 export type Network = "hedera:testnet";
 export type Asset = string; // "HBAR" or an HTS token id
 
