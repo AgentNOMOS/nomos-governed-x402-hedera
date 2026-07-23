@@ -285,7 +285,10 @@
   </section>
 
   <!-- ── E2. HCS ANCHOR ───────────────────────────────────────────────── -->
-  <section id="anchor" class="band" aria-labelledby="anchor-title" data-state="NOT_YET_ANCHORED">
+  <!-- Initial state before app.js resolves the evidence. Deliberately not
+       NOT_YET_ANCHORED: markup that has not read a document yet knows nothing
+       about the ledger, and must not assert that nothing is anchored. -->
+  <section id="anchor" class="band" aria-labelledby="anchor-title" data-state="ANCHOR_EVIDENCE_NOT_AVAILABLE">
     <div class="band-head">
       <h2 id="anchor-title"><span class="sec-no">04b</span>Consensus anchor</h2>
       <p class="band-note">A timestamp and an order, from a third party.</p>

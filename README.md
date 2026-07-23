@@ -7,9 +7,22 @@
 > moved 0.05 HBAR with the quote id `q_6eb0be075ceaee4b92d86575` in the
 > transaction memo, and receipt `poa_60a1c2220acb7ef835dcdca8` binds identity,
 > policy, request, quote, payment and result — verifying as VALID with
-> `settlement_source: MIRROR_NODE`. The demo UI (CP-H8) presents that evidence
-> and is built but **not deployed**; HCS anchoring (CP-H7) is still to come.
-> See [`docs/evidence/CP-H2-REPORT.md`](docs/evidence/CP-H2-REPORT.md).
+> `settlement_source: MIRROR_NODE`. See
+> [`docs/evidence/CP-H2-REPORT.md`](docs/evidence/CP-H2-REPORT.md).
+>
+> ✅ **CP-H7 complete — the receipt's digest is anchored on the Hedera Consensus
+> Service.** Message 1 on topic
+> [`0.0.9703011`](https://hashscan.io/testnet/topic/0.0.9703011) (submit
+> `0.0.9689846@1784818787.803110569`, consensus `1784818806.041876104`) carries a
+> 585-byte envelope binding `receipt_id` and `record_digest`. The signed receipt
+> is **byte-identical and still carries `anchor: null`** — writing the anchor into
+> it would have broken the signature it exists to carry, so the anchor is separate
+> evidence that names the receipt rather than a claim inside it. Consensus binds
+> *when* the digest existed and in *what order*; it does not re-check the evidence.
+> See [`docs/evidence/CP-H7F-ANCHOR-CONFIRMED.md`](docs/evidence/CP-H7F-ANCHOR-CONFIRMED.md).
+>
+> The demo UI (CP-H8) presents both and is built but **not deployed**. Testnet
+> only.
 
 ---
 
