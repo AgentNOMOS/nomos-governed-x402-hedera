@@ -1,11 +1,12 @@
 # Demo UI — CP-H8
 
-A single, self-contained page that presents the CP-H2 evidence: a policy-bound
-x402 payment settled on Hedera testnet, verified against Mirror Node data, and
-carried by a tamper-evident proof-of-action receipt.
+A single, self-contained page that presents the CP-H2 and CP-H7 evidence: a
+policy-bound x402 payment settled on Hedera testnet, verified against Mirror Node
+data, carried by a tamper-evident proof-of-action receipt, and linked to a
+confirmed HCS digest anchor.
 
-It is **local and staged**. Nothing here is deployed, no service is started by
-it, and it cannot make a payment.
+It is **local and not deployed**. Nothing here starts a service automatically,
+and it cannot make a payment.
 
 ## Preview it
 
@@ -64,8 +65,11 @@ artifacts disagree on any bound field: memo versus quote id, amount, payer,
 payee, transaction id, consensus timestamp, result hash. It also throws if the
 record digest does not recompute, if the receipt id does not re-derive, if the
 settlement is unverified or marked mock, if the network is not
-`hedera:testnet` — or if the receipt has acquired an HCS anchor, because CP-H8
-is only able to present anchoring as pending.
+`hedera:testnet` — or if the signed receipt has acquired an inline HCS anchor.
+The receipt must remain byte-identical; CP-H8 resolves the confirmed anchor from
+the separate
+CP-H7 evidence and checks that both are bound by `receipt_id` and
+`record_digest`.
 
 **At render time.** `app.js` re-checks the claims the page makes before it shows
 anything. If the module is missing, incomplete, or self-contradictory, the page
@@ -75,10 +79,11 @@ absent data is worse than one that renders nothing.
 ## What it deliberately does not do
 
 No wallet connection. No payment function. No “pay now”. No write request, no
-network request at all, no third-party asset, no analytics. No receipt creation,
-re-creation or re-signing — the in-browser control recomputes SHA-256 over the
-canonical form of the *existing* record and compares, which is a check, not a
-signature.
+third-party asset and no analytics. The page makes no network request on load;
+its one optional, user-initiated live check reads the confirmed HCS message from
+a Hedera Mirror Node. There is no receipt creation, re-creation or re-signing —
+the in-browser control recomputes SHA-256 over the canonical form of the
+*existing* record and compares, which is a check, not a signature.
 
 ## The two graphics
 
@@ -91,9 +96,10 @@ than a broken image or an invented diagram. See `public/assets/README.md`.
 
 ## Honest status, as the page states it
 
-Testnet demonstration. HCS anchoring pending CP-H7 — the receipt carries
-`anchor: null` and is valid without one. No mainnet deployment, no claim of
-continuous production autonomy, no independent audit or certification. The
-HashScan link is offered for human inspection only: HashScan serves 404 to
-non-browser clients, so it could not be machine-checked. The authoritative
-verification used Hedera Mirror Node data.
+Testnet demonstration. The digest of receipt `poa_60a1c2220acb7ef835dcdca8` is
+confirmed as message 1 on HCS topic `0.0.9703011`. The receipt still carries
+`anchor: null` by design and remains byte-identical; the separate anchor evidence
+binds it by `receipt_id` and `record_digest`. No mainnet deployment, no claim of
+continuous production autonomy, no independent audit or certification. HashScan
+is provided for human inspection; the authoritative machine verification uses
+Hedera Mirror Node data.
