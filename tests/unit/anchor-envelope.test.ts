@@ -550,6 +550,79 @@ describe("dry run", () => {
   });
 });
 
+// ── 15. the real CP-H7F consensus record ────────────────────────────────────
+
+describe("evidence schema against the real ledger response", () => {
+  // Built from the actual mirror-node response to the CP-H7F submit. The
+  // schema claimed running_hash was hex until this transaction produced a
+  // base64 value and the verifier rejected our own confirmed anchor — an
+  // assumption that had never met the ledger.
+  const REAL_RUNNING_HASH = "ttgOeLwXoC3mvKLM7UVHuADpEJ0eB0SuAn7Sd/hFbxg7bWZ/HTr7WSKUanKhPLMd";
+
+  test("a base64 running hash is accepted", () => {
+    const e = envelope();
+    const v = verifyAnchorEvidence(
+      evidenceFor(e, {
+        status: "CONFIRMED",
+        running_hash: REAL_RUNNING_HASH,
+        running_hash_version: 3,
+        charged_tx_fee_tinybar: "695405",
+        max_transaction_fee_tinybar: "2000000",
+        chunk: { number: 1, total: 1 },
+        confirmed_at: "2026-07-23T15:00:00Z",
+      }),
+      receipt,
+      observedFor(e),
+    );
+    assert.deepEqual(v.reasons, []);
+    assert.equal(v.ok, true);
+  });
+
+  test("a hex-looking running hash is still fine — base64 is a superset here", () => {
+    const e = envelope();
+    const v = verifyAnchorEvidence(
+      evidenceFor(e, { running_hash: "deadbeef" }),
+      receipt,
+      observedFor(e),
+    );
+    assert.deepEqual(v.reasons, []);
+  });
+
+  test("a running hash with characters outside base64 is refused", () => {
+    const e = envelope();
+    const v = verifyAnchorEvidence(evidenceFor(e, { running_hash: "not a hash!" }), receipt, observedFor(e));
+    assert.ok(v.reasons.some((r) => r.startsWith("evidence_schema_invalid")));
+  });
+
+  test("a fee as a number rather than a decimal string is refused", () => {
+    const e = envelope();
+    const v = verifyAnchorEvidence(evidenceFor(e, { charged_tx_fee_tinybar: 695405 }), receipt, observedFor(e));
+    assert.ok(v.reasons.some((r) => r.startsWith("evidence_schema_invalid")));
+  });
+
+  test("receipt_unmodified must carry a null anchor field", () => {
+    const e = envelope();
+    const ok = verifyAnchorEvidence(
+      evidenceFor(e, { receipt_unmodified: { sha256: "a".repeat(64), anchor_field: null } }),
+      receipt,
+      observedFor(e),
+    );
+    assert.deepEqual(ok.reasons, []);
+    const bad = verifyAnchorEvidence(
+      evidenceFor(e, { receipt_unmodified: { sha256: "a".repeat(64), anchor_field: "ANCHORED" } }),
+      receipt,
+      observedFor(e),
+    );
+    assert.ok(bad.reasons.some((r) => r.startsWith("evidence_schema_invalid")));
+  });
+
+  test("a multi-chunk message is representable and visible as such", () => {
+    const e = envelope();
+    const v = verifyAnchorEvidence(evidenceFor(e, { chunk: { number: 1, total: 2 } }), receipt, observedFor(e));
+    assert.deepEqual(v.reasons, [], "the schema allows it — the operator has to notice it, not the validator");
+  });
+});
+
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 function grant(over: Record<string, unknown> = {}) {

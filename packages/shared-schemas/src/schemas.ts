@@ -592,12 +592,76 @@ export const HCS_ANCHOR_EVIDENCE_SCHEMA = {
     sequence_number: { type: "integer", minimum: 1, nullable: true },
     transaction_id: { type: "string", pattern: PATTERN_TX_ID, nullable: true },
     consensus_timestamp: { type: "string", pattern: PATTERN_CONSENSUS_TS, nullable: true },
-    running_hash: { type: "string", pattern: "^[0-9a-f]+$", maxLength: 192, nullable: true },
+    running_hash: {
+      type: "string",
+      // base64, which is how a mirror node actually returns it. This pattern
+      // said hex until CP-H7F, where a real submit produced a value the schema
+      // rejected — an assumption that had never met the ledger.
+      pattern: "^[A-Za-z0-9+/]+={0,2}$",
+      maxLength: 192,
+      nullable: true,
+    },
     submitted_at: { ...isoTime("Local submit time."), nullable: true },
     confirmed_at: { ...isoTime("When the mirror-node read-back succeeded."), nullable: true },
     hashscan_url: { type: "string", maxLength: 512, nullable: true },
     mirror_url: { type: "string", maxLength: 512, nullable: true },
     failure_code: { type: "string", maxLength: 64, nullable: true },
+
+    // ── observed after consensus ──────────────────────────────────────────
+    // Declared rather than waved through: `additionalProperties: false` is the
+    // reason this schema is worth having, and a verifier that had to tolerate
+    // undeclared fields could not tell an enriched record from a forged one.
+    running_hash_version: { type: "integer", minimum: 1, nullable: true },
+    chunk: {
+      type: "object",
+      additionalProperties: false,
+      required: ["number", "total"],
+      description: "Chunk position. Anything other than 1 of 1 means the message was split.",
+      properties: {
+        number: { type: "integer", minimum: 1 },
+        total: { type: "integer", minimum: 1 },
+      },
+      nullable: true,
+    },
+    charged_tx_fee_tinybar: { type: "string", pattern: PATTERN_ATOMIC, nullable: true },
+    max_transaction_fee_tinybar: { type: "string", pattern: PATTERN_ATOMIC, nullable: true },
+    source_topic_create: {
+      type: "object",
+      additionalProperties: false,
+      required: ["transaction_id", "consensus_timestamp"],
+      description: "The topic-creation transaction this anchor's topic came from.",
+      properties: {
+        transaction_id: { type: "string", pattern: PATTERN_TX_ID },
+        consensus_timestamp: { type: "string", pattern: PATTERN_CONSENSUS_TS },
+      },
+      nullable: true,
+    },
+    independent_verification: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "A read-back performed outside the submitting tool. A tool confirming its own work is not a second opinion.",
+      required: ["byte_exact_match", "result"],
+      properties: {
+        byte_exact_match: { type: "boolean" },
+        result: { type: "string", maxLength: 32 },
+      },
+      nullable: true,
+    },
+    duplicate_protection: { type: "object", additionalProperties: true, nullable: true },
+    receipt_unmodified: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Proof that the signed CP-H2 receipt was left alone. Writing an anchor into it would change its canonical bytes.",
+      required: ["sha256", "anchor_field"],
+      properties: {
+        sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+        anchor_field: { type: "null" },
+      },
+      nullable: true,
+    },
+    permanence_note: { type: "string", maxLength: 1024, nullable: true },
   },
 } as const satisfies Record<string, unknown>;
 

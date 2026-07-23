@@ -159,7 +159,7 @@
     },
     "running_hash": {
       "type": "string",
-      "pattern": "^[0-9a-f]+$",
+      "pattern": "^[A-Za-z0-9+/]+={0,2}$",
       "maxLength": 192,
       "nullable": true
     },
@@ -188,6 +188,109 @@
     "failure_code": {
       "type": "string",
       "maxLength": 64,
+      "nullable": true
+    },
+    "running_hash_version": {
+      "type": "integer",
+      "minimum": 1,
+      "nullable": true
+    },
+    "chunk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "number",
+        "total"
+      ],
+      "description": "Chunk position. Anything other than 1 of 1 means the message was split.",
+      "properties": {
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "nullable": true
+    },
+    "charged_tx_fee_tinybar": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "nullable": true
+    },
+    "max_transaction_fee_tinybar": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "nullable": true
+    },
+    "source_topic_create": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transaction_id",
+        "consensus_timestamp"
+      ],
+      "description": "The topic-creation transaction this anchor's topic came from.",
+      "properties": {
+        "transaction_id": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+@[0-9]+\\.[0-9]+$"
+        },
+        "consensus_timestamp": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        }
+      },
+      "nullable": true
+    },
+    "independent_verification": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "A read-back performed outside the submitting tool. A tool confirming its own work is not a second opinion.",
+      "required": [
+        "byte_exact_match",
+        "result"
+      ],
+      "properties": {
+        "byte_exact_match": {
+          "type": "boolean"
+        },
+        "result": {
+          "type": "string",
+          "maxLength": 32
+        }
+      },
+      "nullable": true
+    },
+    "duplicate_protection": {
+      "type": "object",
+      "additionalProperties": true,
+      "nullable": true
+    },
+    "receipt_unmodified": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Proof that the signed CP-H2 receipt was left alone. Writing an anchor into it would change its canonical bytes.",
+      "required": [
+        "sha256",
+        "anchor_field"
+      ],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "anchor_field": {
+          "type": "null"
+        }
+      },
+      "nullable": true
+    },
+    "permanence_note": {
+      "type": "string",
+      "maxLength": 1024,
       "nullable": true
     }
   }
