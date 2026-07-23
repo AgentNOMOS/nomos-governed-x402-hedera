@@ -52,7 +52,8 @@ mock warning. Mock artifacts still exist for the offline suite and still carry
 | Isolated payment signer process | `services/agent-client/src/signer-process.ts` | ✅ complete | **real** |
 | Pre-transaction safety gate | `tools/preflight-check.ts` | ✅ complete | **real**, 17 checks |
 | One-shot payment runner | `tools/run-payment.ts` | ✅ complete | **real**, dry-run default + one-payment lock |
-| Demo UI | `apps/demo-ui/` | ✅ CP-H8 | **real**, local only — presents CP-H2 evidence, refuses to render an anchor |
+| Demo UI | `apps/demo-ui/` | ✅ CP-H8 | **real**, local only — presents CP-H2 evidence and the confirmed CP-H7 anchor |
+| Demo anchor resolution | `apps/demo-ui/src/anchor-model.ts` | ✅ CP-H8 | **real**, 14 fail-closed checks; four distinct states |
 | HCS anchor envelope v2 | `packages/hcs-anchor/src/anchor-envelope.ts` | ✅ CP-H7 prep | **real** bytes, nothing submitted |
 | HCS anchor verifier | `.../anchor-verifier.ts` | ✅ CP-H7 prep | **real**, offline; CONFIRMED needs an observation |
 | HCS anchor guard (Grant B) | `.../anchor-guard.ts` | ✅ CP-H7D | **real**, BLOCKED — no confirmed topic, no Grant B |
@@ -132,9 +133,9 @@ from auto-account creation and the code read `transactions[0]`. Fixed in
 `selectUserTransaction`, regression-tested in `tests/unit/child-records.test.ts`.
 Full account in `docs/evidence/CP-H2-REPORT.md` §4.
 
-**Next:** the CP-H8 anchor integration (`docs/CP-H8-ANCHOR-INTEGRATION-PLAN.md`),
-which is now unblocked and needs its own approval — the demo still refuses to
-render an anchor. Then the bounty video and the public repository.
+**Next:** the bounty video and the public repository. The public push is still
+blocked on the git-identity decision and on `tools/secret-scan.allow.json` being
+untracked (see `docs/evidence/CP-H7-PREPARATION.md` §10).
 
 **Anchored, and the receipt is unchanged.** The digest of
 `poa_60a1c2220acb7ef835dcdca8` reached consensus on topic `0.0.9703011` at

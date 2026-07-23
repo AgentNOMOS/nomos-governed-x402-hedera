@@ -1132,6 +1132,97 @@ h1 em {
   .btn:hover { transform: none; }
 }
 
+/* ── Consensus anchor (CP-H8) ─────────────────────────────────────────── */
+
+.anchor-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--ink-840), var(--ink-870));
+  padding: 1.6rem 1.6rem 1.5rem;
+}
+.anchor-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+.anchor-label {
+  margin: 0;
+  font: 500 0.66rem/1.6 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.anchor-state {
+  margin: 0;
+  font: 600 0.82rem/1.4 var(--mono);
+  letter-spacing: 0.1em;
+  /* Amber until the state says otherwise: an unresolved anchor should not look
+     settled while the page is still deciding. */
+  color: var(--amber);
+}
+#anchor[data-state="CONFIRMED_ON_TESTNET"] .anchor-state { color: var(--cyan); }
+#anchor[data-state="ANCHOR_EVIDENCE_INVALID"] .anchor-state { color: #ff7a7a; }
+
+.anchor-notice {
+  margin: 1rem 0 0;
+  font: 400 0.76rem/1.5 var(--mono);
+  color: var(--text-faint);
+}
+
+.anchor-facts {
+  margin: 1.25rem 0 0;
+  display: grid;
+  gap: 0.75rem 1.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+.anchor-facts:empty { margin: 0; }
+.anchor-facts dt {
+  font: 500 0.63rem/1.6 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.anchor-facts dd { margin: 0; font-size: 0.86rem; line-height: 1.5; color: var(--text); }
+.anchor-facts dd.mono { font-family: var(--mono); font-size: 0.79rem; }
+
+/* `display: grid` below would otherwise beat the user agent's [hidden] rule and
+   leave an empty bordered box on a page with nothing wrong with it. */
+.anchor-reasons[hidden] { display: none; }
+.anchor-reasons {
+  list-style: none;
+  margin: 1.1rem 0 0;
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.4rem;
+  border: 1px solid rgba(255, 122, 122, 0.32);
+  border-radius: 10px;
+  font: 400 0.79rem/1.5 var(--mono);
+  color: #ff9c9c;
+}
+
+.anchor-copy { margin-top: 1.4rem; display: grid; gap: 0.85rem; max-width: 52rem; }
+.anchor-copy p { margin: 0; color: var(--text-dim); line-height: 1.65; }
+.anchor-copy strong { color: var(--text); font-weight: 600; }
+.anchor-copy code {
+  font-family: var(--mono);
+  font-size: 0.82em;
+  color: var(--cyan);
+}
+
+.anchor-live-out {
+  margin: 1.1rem 0 0;
+  font: 400 0.8rem/1.55 var(--mono);
+  color: var(--text-dim);
+}
+.anchor-live-out:empty { margin: 0; }
+.anchor-live-out.state-confirmed_on_testnet { color: var(--cyan); }
+.anchor-live-out.state-live_verification_unavailable { color: var(--amber); }
+.anchor-live-out.state-anchor_evidence_invalid { color: #ff9c9c; }
+
 @media print {
   body::before, body::after { display: none; }
   body { background: #fff; color: #000; }

@@ -20,6 +20,7 @@ import { buildDemoEvidence, REPO_ROOT, EVIDENCE_SOURCES } from "../../apps/demo-
 import { canonicalDigest, canonicalString } from "../../packages/shared-schemas/src/canonical.ts";
 import { receiptId } from "../../packages/shared-schemas/src/ids.ts";
 import { resolveStaticPath, PUBLIC_DIR } from "../../apps/demo-ui/serve.ts";
+import { classifyLiveCheck } from "../../apps/demo-ui/src/anchor-model.ts";
 
 const PUBLIC = "apps/demo-ui/public";
 
@@ -77,7 +78,19 @@ describe("demo page — public claims", () => {
         `"${line.trim()}" implies a live source; this page renders recorded evidence`,
       );
     }
-    assert.doesNotMatch(prose, /\bLIVE\b/);
+    // Uppercase LIVE used to be banned outright, when the page had no network
+    // path at all. CP-H8 introduced one — an opt-in anchor re-check — and with
+    // it a state whose whole job is to say the check could NOT run. The ban
+    // narrows rather than lifts: the only permitted uppercase LIVE is that
+    // unavailability state.
+    for (const line of linesWith(prose, /\bLIVE\b/)) {
+      assert.match(
+        line.replace(/live_verification_unavailable/gi, ""),
+        /LIVE VERIFICATION UNAVAILABLE|LIVE_UNAVAILABLE|^[^L]*$/,
+        `"${line.trim()}" uses LIVE for something other than declaring a check unavailable`,
+      );
+    }
+    assert.doesNotMatch(prose, /\bLIVE (DATA|FEED|STATUS|MONITORING)\b/);
   });
 
   test("no mainnet endpoint or explorer link is shipped", () => {
@@ -148,12 +161,40 @@ describe("demo page — public claims", () => {
 });
 
 describe("demo page — it cannot spend, write, or phone home", () => {
-  test("no network call of any kind is issued", () => {
+  test("the page opens no channel and phones nobody home", () => {
     for (const [name, source] of [["app.js", app], ["jcs.js", jcsSource], ["evidence-data.js", data]] as const) {
-      assert.doesNotMatch(source, /\bfetch\s*\(/, `${name} must not fetch`);
       assert.doesNotMatch(source, /XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts/, `${name} must not open a channel`);
       assert.doesNotMatch(source, /navigator\.(sendBeacon|serviceWorker)/, `${name} must not use ${name}`);
     }
+    assert.doesNotMatch(jcsSource, /\bfetch\s*\(/, "jcs.js must not fetch");
+    assert.doesNotMatch(data, /\bfetch\s*\(/, "evidence-data.js must not fetch");
+  });
+
+  test("the only request is one the reader asks for, to the pinned mirror message", () => {
+    // CP-H8 added a live anchor re-check. It is the single network call in the
+    // page, and it exists because a live verification that cannot fail is not a
+    // verification. The invariant that replaced "never fetch" is narrower and
+    // still meaningful: nothing fires on load, and the URL is not composable.
+    const calls = app.match(/\bfetch\s*\(/g) ?? [];
+    assert.equal(calls.length, 1, "app.js should contain exactly one fetch");
+    assert.match(app, /fetch\(a\.mirror_url,/, "the fetch target must come from the evidence, not from a string");
+    // It sits inside a click handler, so nothing is requested until asked.
+    const idx = app.indexOf("fetch(a.mirror_url,");
+    const handler = app.lastIndexOf('button.addEventListener("click"', idx);
+    assert.ok(handler > 0 && handler < idx, "the fetch must be inside the click handler");
+    assert.equal(evidence.anchor.mirror_url.startsWith("https://testnet.mirrornode.hedera.com/"), true);
+  });
+
+  test("an unreachable network reads as unavailable, never as unanchored or invalid", () => {
+    const unreachable = classifyLiveCheck({ kind: "network_error" }, "x");
+    assert.equal(unreachable.state, "LIVE_VERIFICATION_UNAVAILABLE");
+    assert.notEqual(unreachable.state, "NOT_YET_ANCHORED");
+    assert.notEqual(unreachable.state, "ANCHOR_EVIDENCE_INVALID");
+    const http = classifyLiveCheck({ kind: "http_error", status: 503 }, "x");
+    assert.equal(http.state, "LIVE_VERIFICATION_UNAVAILABLE");
+    // The browser twin must agree with the tested implementation.
+    assert.match(app, /LIVE_VERIFICATION_UNAVAILABLE/);
+    assert.match(app, /says nothing about the anchor/);
   });
 
   test("no wallet, signer or payment surface exists", () => {
@@ -201,6 +242,7 @@ describe("demo page — it cannot spend, write, or phone home", () => {
     // The hrefs themselves come from the evidence at runtime.
     assert.match(app, /link-mirror/);
     assert.match(app, /link-hashscan/);
+    assert.match(app, /link-topic/);
     assert.equal(evidence.chain.mirror_url.startsWith("https://testnet.mirrornode.hedera.com/"), true);
     assert.equal(evidence.chain.hashscan_url.startsWith("https://hashscan.io/testnet/"), true);
   });
@@ -229,7 +271,12 @@ describe("demo page — it refuses rather than half-renders", () => {
   test("the browser-side gate re-checks the claims the page depends on", () => {
     assert.match(app, /data\.chain\.memo !== data\.chain\.quote_id/);
     assert.match(app, /data\.chain\.network !== "hedera:testnet"/);
-    assert.match(app, /anchor_status !== "NOT_YET_ANCHORED"/);
+    // Was: anchor_status !== "NOT_YET_ANCHORED", which refused to render a
+    // confirmed anchor. The gate now checks that the signed receipt was not
+    // edited, and that an anchor resolution is present at all.
+    assert.match(app, /data\.receipt\.anchor !== null/);
+    assert.match(app, /typeof data\.anchor\.state !== "string"/);
+    assert.doesNotMatch(app, /anchor_status !== "NOT_YET_ANCHORED"/);
     assert.match(app, /mock_settlement !== false/);
   });
 

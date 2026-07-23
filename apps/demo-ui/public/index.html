@@ -244,7 +244,7 @@
         <div><dt>Key id</dt><dd class="wrap mono" data-bind="receipt.signature.kid">—</dd></div>
         <div><dt>Domain</dt><dd class="wrap mono" data-bind="receipt.signature.signature_domain">—</dd></div>
         <div><dt>Canonicalization</dt><dd class="wrap mono" data-bind="receipt.signature.canonicalization">—</dd></div>
-        <div><dt>HCS anchor</dt><dd class="pending" data-bind="receipt.anchor_status">—</dd></div>
+        <div><dt>HCS anchor</dt><dd class="wrap" data-bind="receipt.anchor_status">—</dd></div>
       </dl>
 
       <div class="recompute">
@@ -281,6 +281,64 @@
           <pre class="code code--scroll" id="record-json">—</pre>
         </div>
       </details>
+    </div>
+  </section>
+
+  <!-- ── E2. HCS ANCHOR ───────────────────────────────────────────────── -->
+  <section id="anchor" class="band" aria-labelledby="anchor-title" data-state="NOT_YET_ANCHORED">
+    <div class="band-head">
+      <h2 id="anchor-title"><span class="sec-no">04b</span>Consensus anchor</h2>
+      <p class="band-note">A timestamp and an order, from a third party.</p>
+    </div>
+
+    <div class="anchor-card">
+      <div class="anchor-head">
+        <p class="anchor-label">Hedera Consensus Service</p>
+        <p class="anchor-state" data-bind="anchor.label">—</p>
+      </div>
+
+      <p class="anchor-notice" data-bind="anchor.testnet_notice">—</p>
+
+      <dl class="anchor-facts" id="anchor-facts"></dl>
+
+      <ul class="anchor-reasons" id="anchor-reasons" hidden></ul>
+
+      <div class="anchor-copy">
+        <p>
+          <strong>The signed receipt was not changed.</strong> It still carries
+          <code>anchor: null</code> and is byte-identical to the artifact produced in
+          CP-H2. A receipt is signed over its canonical bytes, so writing an anchor
+          into it would break the very signature it exists to carry.
+        </p>
+        <p>
+          The anchor is therefore <strong>separate evidence, bound by digest</strong>:
+          the message on the topic names the receipt id and the record digest, which
+          is what lets anyone check it <em>against</em> the receipt rather than having
+          to trust a claim inside it.
+        </p>
+        <p>
+          What Hedera contributes is narrow and real: <strong>a consensus timestamp and
+          an ordering</strong> for those bytes. It does not attest that the underlying
+          work was correct, and it does not replace verifying the evidence chain —
+          the policy decision, the settlement and the delivery hash above.
+        </p>
+      </div>
+
+      <div class="recompute">
+        <p class="recompute-lede">
+          You can read the topic yourself. This fetches message
+          <span class="mono">#1</span> from a public mirror node and compares the bytes
+          with the envelope recorded here. If the network is unreachable — offline, a
+          blocked host, or a mirror node having a bad day — the result is
+          <em>live verification unavailable</em>, which is a statement about the
+          network and not about the anchor.
+        </p>
+        <div class="recompute-actions">
+          <button class="btn btn--primary btn--sm" type="button" id="anchor-live">Read the topic and compare</button>
+          <a class="btn btn--ghost btn--sm" id="link-topic" href="#" target="_blank" rel="noopener noreferrer">Open the topic on HashScan</a>
+        </div>
+        <p class="anchor-live-out" id="anchor-live-out" aria-live="polite"></p>
+      </div>
     </div>
   </section>
 

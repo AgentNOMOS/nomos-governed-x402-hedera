@@ -68,6 +68,8 @@
     "receipt.record_digest",
     "receipt.verdict",
     "receipt.record",
+    "anchor.state",
+    "anchor.label",
     "failClosed.error",
     "cards",
     "flow",
@@ -97,9 +99,23 @@
       return "The evidence names network `" + data.chain.network +
         "`. This page presents Hedera Testnet evidence only.";
     }
-    if (data.receipt.anchor !== null || data.receipt.anchor_status !== "NOT_YET_ANCHORED") {
-      return "The receipt carries an HCS anchor. This page is only able to present " +
-        "anchoring as pending, so it will not render.";
+    // The receipt must be UNMODIFIED. This check used to also refuse whenever
+    // anchor_status was anything but NOT_YET_ANCHORED, which read an absent
+    // field in a signed document as "no anchor exists" — false since CP-H7F,
+    // and it would have hidden a confirmed anchor behind a blank page.
+    // The anchor now arrives as separate, digest-bound evidence.
+    if (data.receipt.anchor !== null) {
+      return "The receipt carries an inline anchor field. A signed receipt must never be " +
+        "edited to add one — that would change its canonical bytes and break the signature. " +
+        "The anchor belongs in separate evidence, so this page will not render.";
+    }
+    if (!data.anchor || typeof data.anchor.state !== "string") {
+      return "The evidence module carries no anchor resolution. `anchor` is produced by " +
+        "`apps/demo-ui/src/anchor-model.ts` and must be present even when nothing is anchored.";
+    }
+    if (data.anchor.state === "CONFIRMED_ON_TESTNET" && data.anchor.network !== "hedera:testnet") {
+      return "The anchor claims confirmation on `" + data.anchor.network + "`. This page " +
+        "presents Hedera Testnet evidence only.";
     }
     if (data.receipt.mock_settlement !== false) {
       return "The receipt is marked as a mock settlement and does not evidence a real payment.";
@@ -242,6 +258,117 @@
 
     var sources = doc.getElementById("foot-sources");
     if (sources && data.sources) sources.textContent = data.sources.join(" · ");
+  }
+
+  // ── Anchor ────────────────────────────────────────────────────────────
+
+  var LIVE_UNAVAILABLE = "LIVE VERIFICATION UNAVAILABLE";
+
+  /**
+   * Classify a live mirror-node read.
+   *
+   * Mirrors `classifyLiveCheck` in `apps/demo-ui/src/anchor-model.ts`, which is
+   * the version under test. The rule both enforce: an unreachable network says
+   * nothing about the anchor. This page can be opened from `file://`, where a
+   * cross-origin fetch simply cannot succeed, and that must read as "could not
+   * check" — never as "not anchored" and never as "invalid".
+   */
+  function classifyLive(outcome, expectedCanonical) {
+    if (outcome.kind === "network_error" || outcome.kind === "http_error") {
+      var why = outcome.kind === "http_error"
+        ? "the mirror node returned HTTP " + outcome.status
+        : "the mirror node could not be reached";
+      return {
+        state: "LIVE_VERIFICATION_UNAVAILABLE",
+        label: LIVE_UNAVAILABLE,
+        detail: why + ". This says nothing about the anchor: the verification shown above was " +
+          "performed offline against committed evidence and is unaffected.",
+      };
+    }
+    if (!expectedCanonical) {
+      return { state: "LIVE_VERIFICATION_UNAVAILABLE", label: LIVE_UNAVAILABLE,
+        detail: "no expected message is available to compare against." };
+    }
+    var decoded;
+    try {
+      decoded = decodeURIComponent(escape(atob(outcome.messageBase64)));
+    } catch (err) {
+      return { state: "LIVE_VERIFICATION_UNAVAILABLE", label: LIVE_UNAVAILABLE,
+        detail: "the mirror node returned a message that could not be decoded." };
+    }
+    if (decoded !== expectedCanonical) {
+      return { state: "ANCHOR_EVIDENCE_INVALID", label: "ANCHOR EVIDENCE INVALID",
+        detail: "the message on the topic differs from the recorded envelope, byte for byte." };
+    }
+    return { state: "CONFIRMED_ON_TESTNET", label: "CONFIRMED ON HEDERA TESTNET",
+      detail: "the message on the topic matches the recorded envelope exactly (" +
+        expectedCanonical.length + " bytes)." };
+  }
+
+  function renderAnchor(data) {
+    var a = data.anchor;
+    var box = doc.getElementById("anchor");
+    if (!box || !a) return;
+
+    box.setAttribute("data-state", a.state);
+
+    var facts = doc.getElementById("anchor-facts");
+    if (facts && a.state === "CONFIRMED_ON_TESTNET") {
+      [
+        ["Network", "Hedera Testnet", false],
+        ["Topic", a.topic_id, true],
+        ["Sequence", String(a.sequence_number), true],
+        ["Consensus timestamp", a.consensus_timestamp + (a.consensus_utc ? " · " + a.consensus_utc : ""), true],
+        ["Submit transaction", a.transaction_id_short, true],
+        ["record_digest", a.record_digest_short, true],
+        ["Envelope SHA-256", a.envelope_sha256_short, true],
+        ["Message size", a.envelope_bytes + " bytes, one chunk", false],
+      ].forEach(function (row) {
+        if (!row[1]) return;
+        var div = doc.createElement("div");
+        div.appendChild(el("dt", null, row[0]));
+        div.appendChild(el("dd", row[2] ? "mono wrap" : "wrap", row[1]));
+        facts.appendChild(div);
+      });
+    }
+
+    var reasons = doc.getElementById("anchor-reasons");
+    if (reasons && a.reasons && a.reasons.length > 0) {
+      a.reasons.forEach(function (r) { reasons.appendChild(el("li", null, r)); });
+      reasons.hidden = false;
+    }
+
+    var link = doc.getElementById("link-topic");
+    if (link) link.href = a.hashscan_url;
+
+    var button = doc.getElementById("anchor-live");
+    var out = doc.getElementById("anchor-live-out");
+    if (!button || !out) return;
+    if (a.state !== "CONFIRMED_ON_TESTNET") { button.disabled = true; return; }
+
+    button.addEventListener("click", function () {
+      button.disabled = true;
+      out.textContent = "Reading the topic…";
+      var done = function (v) {
+        out.textContent = v.label + " — " + v.detail;
+        out.className = "anchor-live-out state-" + v.state.toLowerCase();
+        button.disabled = false;
+        announce(v.label + ". " + v.detail);
+      };
+      if (typeof fetch !== "function") {
+        done(classifyLive({ kind: "network_error" }, a.envelope_canonical));
+        return;
+      }
+      fetch(a.mirror_url, { headers: { accept: "application/json" } }).then(
+        function (res) {
+          if (!res.ok) { done(classifyLive({ kind: "http_error", status: res.status }, a.envelope_canonical)); return; }
+          return res.json().then(function (body) {
+            done(classifyLive({ kind: "fetched", messageBase64: body && body.message }, a.envelope_canonical));
+          });
+        },
+        function () { done(classifyLive({ kind: "network_error" }, a.envelope_canonical)); },
+      );
+    });
   }
 
   function renderLinks(data) {
@@ -459,6 +586,7 @@
     renderFailClosed(data);
     renderLimits(data);
     renderReceipt(data);
+    renderAnchor(data);
     renderLinks(data);
     wireAssetSlots();
     wireRecompute(data);

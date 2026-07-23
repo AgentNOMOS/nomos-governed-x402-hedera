@@ -170,21 +170,28 @@ describe("demo UI — the strings taken from the prose report are still there", 
   });
 });
 
-describe("demo UI — HCS is presented as pending, and only as pending", () => {
-  test("the canonical receipt carries no anchor", () => {
+describe("demo UI — the anchor comes from linked evidence, never from the receipt", () => {
+  test("the canonical receipt still carries no anchor, and that is the point", () => {
+    // The signed artifact was never edited. The status the page shows is
+    // resolved from docs/evidence/cp-h7/anchor-evidence.json instead.
     assert.equal(receipt.anchor, null);
     assert.equal(evidence.receipt.anchor, null);
-    assert.equal(evidence.receipt.anchor_status, "NOT_YET_ANCHORED");
+    assert.equal(evidence.receipt.anchor_status, "CONFIRMED ON HEDERA TESTNET");
+    assert.equal(evidence.anchor.receipt_unmodified, true);
   });
 
-  test("the anchor status card is pending, never verified", () => {
+  test("the anchor card reports the confirmed state", () => {
     const card = evidence.cards.find((c) => c.id === "anchor");
     assert.ok(card);
-    assert.equal(card.state, "pending");
-    assert.equal(card.value, "NOT YET ANCHORED");
+    assert.equal(card.state, "verified");
+    assert.equal(card.value, "CONFIRMED ON HEDERA TESTNET");
+    assert.match(card.note, /0\.0\.9703011/);
   });
 
-  test("an anchored receipt would stop the build — CP-H8 may not present one", () => {
+  test("a receipt edited to carry an anchor stops the build", () => {
+    // Unchanged in force, inverted in meaning: an inline anchor is now refused
+    // because it would have broken the signature, not because the page is
+    // unable to present one.
     assert.throws(
       withMutatedArtifacts((files) => {
         files.receipt.anchor = {
@@ -194,8 +201,14 @@ describe("demo UI — HCS is presented as pending, and only as pending", () => {
           anchored_digest: files.receipt.record_digest,
         };
       }),
-      (err: unknown) => err instanceof EvidenceIntegrityError && err.code === "ANCHOR_PRESENT",
+      (err: unknown) => err instanceof EvidenceIntegrityError && err.code === "RECEIPT_MODIFIED",
     );
+  });
+
+  test("the demo no longer renders NOT_YET_ANCHORED for an anchored receipt", () => {
+    assert.notEqual(evidence.anchor.state, "NOT_YET_ANCHORED");
+    assert.equal(evidence.anchor.state, "CONFIRMED_ON_TESTNET");
+    assert.doesNotMatch(JSON.stringify(evidence.cards), /NOT YET ANCHORED/);
   });
 });
 
@@ -395,7 +408,11 @@ describe("demo UI — shape the page depends on", () => {
   test("the limitations state the testnet, HCS and audit boundaries", () => {
     const all = evidence.limitations.join(" ").toLowerCase();
     assert.match(all, /testnet/);
-    assert.match(all, /cp-h7/);
+    // "pending CP-H7" is gone: it is done. What replaced it states what the
+    // anchor does and does not attest.
+    assert.doesNotMatch(all, /pending cp-h7/);
+    assert.match(all, /does not attest that the underlying work was correct/);
+    assert.match(all, /anchoring is additive/);
     assert.match(all, /no mainnet deployment exists/);
     assert.match(all, /no independent third party has audited/);
     assert.match(all, /no wallet connection/);

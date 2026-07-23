@@ -26,12 +26,13 @@
  * This module reads files and does arithmetic. It performs no network access,
  * signs nothing, and cannot produce a receipt.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { canonicalDigest } from "../../../packages/shared-schemas/src/canonical.ts";
 import { receiptId } from "../../../packages/shared-schemas/src/ids.ts";
+import { resolveAnchorState, type AnchorPresentation } from "./anchor-model.ts";
 
 /** Repository root, resolved from this file rather than from `process.cwd()`. */
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -56,6 +57,19 @@ export const EVIDENCE_SOURCES = {
   result: "docs/evidence/cp-h2/result.json",
   executeRun: "docs/evidence/cp-h2/execute-run.json",
   report: "docs/evidence/CP-H2-REPORT.md",
+  /**
+   * The HCS anchor, deliberately a SEPARATE artifact.
+   *
+   * It is not inside `receipt.json` and never will be: the receipt is signed
+   * over its canonical bytes, so an anchor field added after the fact would
+   * break the signature it exists to carry. The link runs the other way — the
+   * anchor names the receipt id and the record digest, which is what makes it
+   * checkable against the receipt instead of a claim inside it.
+   *
+   * Optional. Before CP-H7F this file did not exist, and its absence resolves
+   * to NOT_YET_ANCHORED rather than to an error.
+   */
+  anchorEvidence: "docs/evidence/cp-h7/anchor-evidence.json",
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,8 +159,10 @@ export interface DemoEvidence {
       readonly canonicalization: string;
       readonly public_key_hex: string;
     };
+    /** Always null. The signed artifact is never edited — see EVIDENCE_SOURCES.anchorEvidence. */
     readonly anchor: null;
-    readonly anchor_status: "NOT_YET_ANCHORED";
+    /** Resolved from the linked CP-H7 evidence, NOT from the receipt field above. */
+    readonly anchor_status: string;
     readonly mock_settlement: false;
     readonly record: Readonly<Record<string, unknown>>;
     readonly verify_command: string;
@@ -173,6 +189,7 @@ export interface DemoEvidence {
     readonly checks: readonly PolicyCheck[];
   };
 
+  readonly anchor: AnchorPresentation;
   readonly cards: readonly StatusCard[];
   readonly flow: readonly FlowStep[];
   readonly onchain: readonly EvidenceField[];
@@ -239,6 +256,7 @@ export function parseScanRecord(report: string): { files: number; verdict: strin
   if (m[2] !== "0" || m[3] !== "0" || m[4] !== "CLEAN") {
     fail("REPORT_SCAN_NOT_CLEAN", `the recorded scan is "${m[0]}"`);
   }
+
   return { files: Number(m[1]), verdict: m[4] };
 }
 
@@ -334,6 +352,14 @@ export function buildDemoEvidence(root: string = REPO_ROOT): DemoEvidence {
   const resultDoc = readJson(root, S.result);
   const run = readJson(root, S.executeRun);
   const report = readFileSync(join(root, S.report), "utf8");
+  // Optional by design: absent before CP-H7F, and absence is a state the page
+  // renders honestly rather than an error it dies on.
+  const anchorEvidence = existsSync(join(root, S.anchorEvidence)) ? readJson(root, S.anchorEvidence) : null;
+
+  // Resolved, not asserted: fourteen fail-closed checks decide what the page may
+  // say about the anchor, and every one of them re-derives rather than trusts a
+  // stored string.
+  const anchor = resolveAnchorState(receipt, anchorEvidence);
 
   const record = pick(receipt, "record", S.receipt) as Record<string, unknown>;
   const settlement = pick(settlementDoc, "settlement", S.settlement) as Record<string, unknown>;
@@ -424,7 +450,18 @@ export function buildDemoEvidence(root: string = REPO_ROOT): DemoEvidence {
   must(str(settlement, "finality", S.settlement) === "FINAL", "SETTLEMENT_NOT_FINAL", "settlement finality is not FINAL");
   must(str(record, "network", S.receipt) === "hedera:testnet", "NETWORK_NOT_TESTNET", "network is not hedera:testnet");
   must(str(record, "environment", S.receipt) === "TESTNET_DEMO_ONLY", "ENVIRONMENT_UNEXPECTED", "environment is not TESTNET_DEMO_ONLY");
-  must(pick(receipt, "anchor", S.receipt) === null, "ANCHOR_PRESENT", "receipt.anchor is not null — CP-H8 may only present HCS as pending");
+  // The signed receipt must be UNMODIFIED. This assertion used to exist for the
+  // opposite reason — the page could only present anchoring as pending, so an
+  // anchor field meant "refuse to render". After CP-H7F the anchor is real and
+  // the receipt is still untouched, which is the intended end state: an anchor
+  // written into a signed artifact would change its canonical bytes and break
+  // the signature. So the check stays and its meaning inverts.
+  must(
+    pick(receipt, "anchor", S.receipt) === null,
+    "RECEIPT_MODIFIED",
+    "receipt.anchor is not null — the signed receipt must never be edited to carry an anchor; " +
+      "the anchor belongs in docs/evidence/cp-h7/anchor-evidence.json, bound by receipt_id and record_digest",
+  );
   must(pick(record, "refund_due", S.receipt) === false, "REFUND_DUE", "refund_due is true");
   must(str(record, "execution_status", S.receipt) === "SUCCEEDED", "EXECUTION_NOT_SUCCEEDED", "execution_status is not SUCCEEDED");
   must(str(record, "delivery_status", S.receipt) === "DELIVERED", "DELIVERY_NOT_DELIVERED", "delivery_status is not DELIVERED");
@@ -542,7 +579,7 @@ export function buildDemoEvidence(root: string = REPO_ROOT): DemoEvidence {
         public_key_hex: str(receipt, "signature.public_key_hex", S.receipt),
       },
       anchor: null,
-      anchor_status: "NOT_YET_ANCHORED",
+      anchor_status: anchor.label,
       mock_settlement: false,
       record,
       verify_command:
@@ -574,6 +611,8 @@ export function buildDemoEvidence(root: string = REPO_ROOT): DemoEvidence {
       authorizes_payment: pick(decisionRecord, "authorizes_payment", S.executeRun) === true,
       checks: policyChecks,
     },
+
+    anchor,
 
     cards: [
       {
@@ -621,9 +660,12 @@ export function buildDemoEvidence(root: string = REPO_ROOT): DemoEvidence {
       {
         id: "anchor",
         label: "HCS anchor",
-        value: "NOT YET ANCHORED",
-        state: "pending",
-        note: "Consensus-service anchoring is CP-H7 and has not been performed.",
+        value: anchor.label,
+        state: anchor.state === "CONFIRMED_ON_TESTNET" ? "verified" : "pending",
+        note:
+          anchor.state === "CONFIRMED_ON_TESTNET"
+            ? `Topic ${anchor.topic_id}, sequence ${anchor.sequence_number}. The receipt digest reached consensus; the receipt itself is unchanged.`
+            : "Consensus-service anchoring has not been confirmed for this receipt.",
       },
     ],
 
@@ -722,7 +764,14 @@ export function buildDemoEvidence(root: string = REPO_ROOT): DemoEvidence {
           { label: "receipt_id", value: rid, mono: true },
           { label: "record_digest", value: recordDigest, mono: true },
           { label: "result_hash", value: resultHash, mono: true },
-          { label: "Anchor", value: "null — HCS anchoring is CP-H7, not yet performed", mono: false },
+          {
+            label: "Anchor",
+            value:
+              anchor.state === "CONFIRMED_ON_TESTNET"
+                ? `receipt.anchor stays null — the anchor is separate evidence on topic ${anchor.topic_id} #${anchor.sequence_number}`
+                : "receipt.anchor is null and no confirmed anchor evidence was found",
+            mono: false,
+          },
         ],
         evidence_ref: S.receipt,
       },
@@ -810,7 +859,8 @@ export function buildDemoEvidence(root: string = REPO_ROOT): DemoEvidence {
 
     limitations: [
       "Testnet demonstration. Hedera testnet HBAR has no monetary value and no mainnet deployment exists.",
-      "HCS anchoring is pending CP-H7. The receipt carries anchor: null and is valid without one.",
+      "The HCS anchor records that this digest existed at a consensus timestamp and in what order. It does not attest that the underlying work was correct, and it does not replace checking the evidence chain itself.",
+      "The receipt carries anchor: null and is valid without an anchor. Anchoring is additive: the signed artifact was never edited, and the anchor is separate evidence bound to it by receipt_id and record_digest.",
       "This page renders recorded evidence from committed artifacts. It performs no live query and asserts no continuous production autonomy.",
       "No further payment is required or possible from this page: it has no wallet connection, no payment function and no write path of any kind.",
       "HashScan links are offered for human inspection only. HashScan serves 404 to non-browser clients, so they remain a presentation check.",

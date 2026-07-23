@@ -21,7 +21,8 @@
     "docs/evidence/cp-h2/settlement.json",
     "docs/evidence/cp-h2/result.json",
     "docs/evidence/cp-h2/execute-run.json",
-    "docs/evidence/CP-H2-REPORT.md"
+    "docs/evidence/CP-H2-REPORT.md",
+    "docs/evidence/cp-h7/anchor-evidence.json"
   ],
   "chain": {
     "network": "hedera:testnet",
@@ -56,7 +57,7 @@
       "public_key_hex": "593ad93fa6ebbdabada18f9be12f391b32c5d2c487080d8d79f156c943ea21e9"
     },
     "anchor": null,
-    "anchor_status": "NOT_YET_ANCHORED",
+    "anchor_status": "CONFIRMED ON HEDERA TESTNET",
     "mock_settlement": false,
     "record": {
       "agent_identity": {
@@ -203,6 +204,90 @@
       }
     ]
   },
+  "anchor": {
+    "state": "CONFIRMED_ON_TESTNET",
+    "label": "CONFIRMED ON HEDERA TESTNET",
+    "reasons": [],
+    "checks": [
+      {
+        "id": "status_confirmed",
+        "ok": true
+      },
+      {
+        "id": "receipt_id_matches",
+        "ok": true
+      },
+      {
+        "id": "record_digest_matches",
+        "ok": true
+      },
+      {
+        "id": "receipt_digest_reproducible",
+        "ok": true
+      },
+      {
+        "id": "topic_id_matches",
+        "ok": true
+      },
+      {
+        "id": "sequence_number_matches",
+        "ok": true
+      },
+      {
+        "id": "transaction_id_matches",
+        "ok": true
+      },
+      {
+        "id": "consensus_timestamp_present",
+        "ok": true
+      },
+      {
+        "id": "envelope_sha256_matches",
+        "ok": true
+      },
+      {
+        "id": "envelope_bytes_match",
+        "ok": true
+      },
+      {
+        "id": "anchor_key_reproducible",
+        "ok": true
+      },
+      {
+        "id": "network_is_testnet",
+        "ok": true
+      },
+      {
+        "id": "independent_mirror_verified",
+        "ok": true
+      },
+      {
+        "id": "receipt_left_unmodified",
+        "ok": true
+      }
+    ],
+    "network": "hedera:testnet",
+    "topic_id": "0.0.9703011",
+    "sequence_number": 1,
+    "transaction_id": "0.0.9689846@1784818787.803110569",
+    "transaction_id_short": "0.0.9689846@17…03110569",
+    "consensus_timestamp": "1784818806.041876104",
+    "consensus_utc": "2026-07-23T15:00:06Z",
+    "record_digest": "sha256:2bf595c132c714fc375449c66eb05bc5e0d236d8f04cfba717b00fe9f71ecdb9",
+    "record_digest_short": "sha256:2bf595c…f71ecdb9",
+    "envelope_sha256": "sha256:da01c3a29fa2838b935dc873a9149121891d25bf7a61b4d25e57a186204c43ce",
+    "envelope_sha256_short": "sha256:da01c3a…204c43ce",
+    "envelope_bytes": 585,
+    "anchor_key": "anc_cd5991bdb525e4662dc6f050",
+    "running_hash_version": 3,
+    "charged_fee_display": "0.00695405 HBAR",
+    "envelope_canonical": "{\"anchor_version\":\"v2\",\"canonicalization\":\"RFC8785-JCS/nomos-int-only-v1\",\"created_at\":\"2026-07-23T14:59:11Z\",\"digest_algorithm\":\"sha256\",\"env\":\"TESTNET_DEMO_ONLY\",\"network\":\"hedera:testnet\",\"purpose\":\"proof-of-action receipt digest anchor\",\"receipt_id\":\"poa_60a1c2220acb7ef835dcdca8\",\"receipt_schema_version\":\"nomos.gx402.proof_of_action_receipt.v1\",\"record_digest\":\"sha256:2bf595c132c714fc375449c66eb05bc5e0d236d8f04cfba717b00fe9f71ecdb9\",\"schema\":\"nomos.gx402.anchor.v2\",\"source_consensus_timestamp\":\"1784746993.237232768\",\"source_transaction_id\":\"0.0.7162784@1784746988.798231156\"}",
+    "hashscan_url": "https://hashscan.io/testnet/topic/0.0.9703011",
+    "mirror_url": "https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.9703011/messages/1",
+    "mirror_verified": true,
+    "receipt_unmodified": true,
+    "testnet_notice": "Testnet demonstration — not a mainnet production attestation"
+  },
   "cards": [
     {
       "id": "transaction",
@@ -249,9 +334,9 @@
     {
       "id": "anchor",
       "label": "HCS anchor",
-      "value": "NOT YET ANCHORED",
-      "state": "pending",
-      "note": "Consensus-service anchoring is CP-H7 and has not been performed."
+      "value": "CONFIRMED ON HEDERA TESTNET",
+      "state": "verified",
+      "note": "Topic 0.0.9703011, sequence 1. The receipt digest reached consensus; the receipt itself is unchanged."
     }
   ],
   "flow": [
@@ -452,7 +537,7 @@
         },
         {
           "label": "Anchor",
-          "value": "null — HCS anchoring is CP-H7, not yet performed",
+          "value": "receipt.anchor stays null — the anchor is separate evidence on topic 0.0.9703011 #1",
           "mono": false
         }
       ],
@@ -696,7 +781,8 @@
   },
   "limitations": [
     "Testnet demonstration. Hedera testnet HBAR has no monetary value and no mainnet deployment exists.",
-    "HCS anchoring is pending CP-H7. The receipt carries anchor: null and is valid without one.",
+    "The HCS anchor records that this digest existed at a consensus timestamp and in what order. It does not attest that the underlying work was correct, and it does not replace checking the evidence chain itself.",
+    "The receipt carries anchor: null and is valid without an anchor. Anchoring is additive: the signed artifact was never edited, and the anchor is separate evidence bound to it by receipt_id and record_digest.",
     "This page renders recorded evidence from committed artifacts. It performs no live query and asserts no continuous production autonomy.",
     "No further payment is required or possible from this page: it has no wallet connection, no payment function and no write path of any kind.",
     "HashScan links are offered for human inspection only. HashScan serves 404 to non-browser clients, so they remain a presentation check.",
