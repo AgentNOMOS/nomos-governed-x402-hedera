@@ -60,26 +60,49 @@ export const MIRROR_MESSAGE_URL =
  * any two of them tells the reader something untrue:
  *
  *   CONFIRMED_ON_TESTNET          the digest reached consensus, verified offline
- *   NOT_YET_ANCHORED              no anchor evidence exists at all
+ *   NOT_YET_ANCHORED              evidence exists and states no submission was made
+ *   ANCHOR_EVIDENCE_NOT_AVAILABLE no evidence document could be read at all
  *   ANCHOR_EVIDENCE_INVALID       evidence exists and does not hold up
  *   LIVE_VERIFICATION_UNAVAILABLE a live re-check could not be performed
  *
- * The last one is a statement about the network, never about the anchor. A
- * failed fetch must not read as "not anchored" (which would be false) or as
- * "invalid" (which would be an accusation).
+ * The last two are statements about this bundle and about the network. Neither
+ * is a statement about the ledger. A failed fetch must not read as "not
+ * anchored" (which would be false) or as "invalid" (which would be an
+ * accusation) — and neither must a missing file.
+ *
+ * NOT_YET_ANCHORED used to be the verdict for a missing evidence file. That was
+ * the same conflation, one layer down: it answered "is this digest on a topic?"
+ * with the result of "did this build ship a JSON file?". Before CP-H7F the two
+ * happened to coincide, so the error was invisible. After CP-H7F the digest is
+ * on topic 0.0.9703011 whether or not the file is packaged, and a dropped
+ * artifact would have made the page assert the opposite of the ledger.
+ * NOT_YET_ANCHORED is now reserved for a pre-submit state a document actually
+ * attests to; absence resolves to ANCHOR_EVIDENCE_NOT_AVAILABLE, which claims
+ * nothing about the chain.
  */
 export type AnchorState =
   | "CONFIRMED_ON_TESTNET"
   | "NOT_YET_ANCHORED"
+  | "ANCHOR_EVIDENCE_NOT_AVAILABLE"
   | "ANCHOR_EVIDENCE_INVALID"
   | "LIVE_VERIFICATION_UNAVAILABLE";
 
 export const ANCHOR_LABELS: Record<AnchorState, string> = {
   CONFIRMED_ON_TESTNET: "CONFIRMED ON HEDERA TESTNET",
   NOT_YET_ANCHORED: "NOT YET ANCHORED",
+  ANCHOR_EVIDENCE_NOT_AVAILABLE: "ANCHOR EVIDENCE NOT AVAILABLE",
   ANCHOR_EVIDENCE_INVALID: "ANCHOR EVIDENCE INVALID",
   LIVE_VERIFICATION_UNAVAILABLE: "LIVE VERIFICATION UNAVAILABLE",
 };
+
+/**
+ * Statuses that positively assert nothing was submitted yet. A document with
+ * one of these AND no transaction id is the only way to reach
+ * NOT_YET_ANCHORED. A pending document that DOES carry a transaction id was
+ * submitted and is simply unconfirmed — that falls through to the checks below
+ * and fails closed, rather than being reported as never attempted.
+ */
+const PRE_SUBMIT_STATUSES = new Set(["NOT_SUBMITTED", "PENDING", "PREPARED"]);
 
 export interface AnchorPresentation {
   readonly state: AnchorState;
@@ -174,12 +197,21 @@ export function resolveAnchorState(
   evidence: Record<string, unknown> | null,
 ): AnchorPresentation {
   if (!evidence) {
-    // No evidence file is not a failure. It is the honest state before CP-H7F,
-    // and the page said so correctly for as long as it was true.
-    return empty("NOT_YET_ANCHORED", [], []);
+    // Not a failure, and — since CP-H7F — not a statement about the ledger
+    // either. All this says is that this bundle carries no anchor document.
+    return empty("ANCHOR_EVIDENCE_NOT_AVAILABLE", ["anchor_evidence_missing"], []);
   }
   if (!receipt) {
     return empty("ANCHOR_EVIDENCE_INVALID", ["receipt_missing"], []);
+  }
+  if (
+    typeof evidence.status === "string" &&
+    PRE_SUBMIT_STATUSES.has(evidence.status) &&
+    !evidence.transaction_id
+  ) {
+    // The one case that may claim the chain holds nothing: a document that
+    // says so itself, and has no transaction to contradict it.
+    return empty("NOT_YET_ANCHORED", [], []);
   }
 
   const reasons: string[] = [];

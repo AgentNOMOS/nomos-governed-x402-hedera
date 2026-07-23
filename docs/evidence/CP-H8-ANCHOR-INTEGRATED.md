@@ -59,6 +59,15 @@ the page is unable to present one.
 | `ANCHOR_EVIDENCE_INVALID` | ANCHOR EVIDENCE INVALID | evidence exists and does not hold up |
 | `LIVE_VERIFICATION_UNAVAILABLE` | LIVE VERIFICATION UNAVAILABLE | a live re-check could not run |
 
+> **Superseded on the pre-release pass.** The row for `NOT_YET_ANCHORED` above,
+> and the sentence in §2 that an absent file "resolves to `NOT_YET_ANCHORED`",
+> described a conflation that survived CP-H8: a missing local artifact was
+> reported as a fact about the ledger. A fifth state,
+> `ANCHOR_EVIDENCE_NOT_AVAILABLE` ("ANCHOR EVIDENCE NOT AVAILABLE"), now carries
+> absence. `NOT_YET_ANCHORED` is reserved for a document that attests to a
+> pre-submit state and carries no transaction id. The record above is left as
+> written rather than edited, because it is what CP-H8 actually shipped.
+
 The fourth is a statement about the network and never about the anchor. A failed
 fetch must not read as "not anchored" (false) or as "invalid" (an accusation),
 and `classifyLiveCheck` enforces that in both the tested implementation and its

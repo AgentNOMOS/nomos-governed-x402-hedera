@@ -15,6 +15,13 @@ id_rsa*
 *private*key*
 *privatekey*
 *secret*
+# The three files of the secret SCANNER are not secrets — they are the thing
+# that finds them. `*secret*` above swallowed all three, so a fresh clone got
+# no scanner, no waiver list and no test for either. Re-included by exact path
+# only: a new *secret* file anywhere still stays ignored by default.
+!tools/secret-scan.ts
+!tools/secret-scan.allow.json
+!tests/unit/secret-scan.test.ts
 *.seed
 *mnemonic*
 wallet.json

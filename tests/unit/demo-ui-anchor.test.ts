@@ -86,12 +86,35 @@ describe("the real CP-H7 evidence", () => {
 // ── 2. missing evidence ─────────────────────────────────────────────────────
 
 describe("missing evidence", () => {
-  test("no evidence file is NOT_YET_ANCHORED, not an error", () => {
+  test("no evidence file is ANCHOR_EVIDENCE_NOT_AVAILABLE, not an error", () => {
     const r = resolveAnchorState(receipt, null);
+    assert.equal(r.state, "ANCHOR_EVIDENCE_NOT_AVAILABLE");
+    assert.equal(r.label, "ANCHOR EVIDENCE NOT AVAILABLE");
+    assert.equal(r.topic_id, null);
+  });
+
+  test("a missing file never claims the ledger is empty", () => {
+    // The distinction this state exists for: after CP-H7F the digest is on the
+    // topic regardless of what this bundle ships. Absence is about the bundle.
+    const r = resolveAnchorState(receipt, null);
+    assert.notEqual(r.state, "NOT_YET_ANCHORED");
+    assert.notEqual(r.state, "ANCHOR_EVIDENCE_INVALID");
+    assert.deepEqual(r.reasons, ["anchor_evidence_missing"]);
+  });
+
+  test("NOT_YET_ANCHORED needs a document that attests to it", () => {
+    const r = resolveAnchorState(receipt, { status: "NOT_SUBMITTED" });
     assert.equal(r.state, "NOT_YET_ANCHORED");
     assert.equal(r.label, "NOT YET ANCHORED");
     assert.deepEqual(r.reasons, []);
-    assert.equal(r.topic_id, null);
+  });
+
+  test("a pending document carrying a transaction id is not 'never attempted'", () => {
+    const r = resolveAnchorState(receipt, {
+      status: "PENDING",
+      transaction_id: "0.0.9689846@1784818787.803110569",
+    });
+    assert.equal(r.state, "ANCHOR_EVIDENCE_INVALID");
   });
 
   test("evidence without a receipt cannot be confirmed", () => {
