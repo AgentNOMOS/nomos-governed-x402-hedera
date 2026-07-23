@@ -65,8 +65,9 @@ artifacts disagree on any bound field: memo versus quote id, amount, payer,
 payee, transaction id, consensus timestamp, result hash. It also throws if the
 record digest does not recompute, if the receipt id does not re-derive, if the
 settlement is unverified or marked mock, if the network is not
-`hedera:testnet` — or if the signed receipt has acquired an inline HCS anchor. The receipt must
-remain byte-identical; CP-H8 resolves the confirmed anchor from the separate
+`hedera:testnet` — or if the signed receipt has acquired an inline HCS anchor.
+The receipt must remain byte-identical; CP-H8 resolves the confirmed anchor from
+the separate
 CP-H7 evidence and checks that both are bound by `receipt_id` and
 `record_digest`.
 
