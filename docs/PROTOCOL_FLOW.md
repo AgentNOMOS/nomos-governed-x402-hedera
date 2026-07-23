@@ -1,9 +1,11 @@
 # Protocol Flow
 
-> **Status at CP-H1:** the chain below is implemented and tested end to end, but
-> the payment and anchor legs are **MOCK/OFFLINE**. Nothing has been submitted to
-> Hedera. Every artifact carries `MOCK_OFFLINE` in a signed field so this can
-> never be misread. CP-H2 and CP-H7 replace the mocks behind unchanged interfaces.
+> **Current public-release status (CP-H2 / CP-H7 / CP-H8):** the chain below is
+> implemented and tested end to end. A real 0.05 HBAR x402 payment settled on
+> Hedera testnet, and its signed receipt digest is confirmed as message 1 on HCS
+> topic `0.0.9703011`. Mock adapters remain only for the offline suite; their
+> signed artifacts still carry `MOCK_OFFLINE`, so they cannot be confused with
+> the public testnet evidence.
 
 ---
 
