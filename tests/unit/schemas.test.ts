@@ -14,12 +14,15 @@ import { validate, assertValid, SchemaError } from "../../packages/shared-schema
 import { OFFER } from "../helpers/fixtures.ts";
 
 describe("schema registry", () => {
-  test("all eight canonical schemas are present and uniquely identified", () => {
+  test("all ten canonical schemas are present and uniquely identified", () => {
     const names = Object.keys(ALL_SCHEMAS);
-    assert.equal(names.length, 8);
+    assert.equal(names.length, 10);
     const ids = names.map((n) => (ALL_SCHEMAS as Record<string, any>)[n].$id);
-    assert.equal(new Set(ids).size, 8, "every schema needs its own $id");
-    for (const id of ids) assert.match(id, /\.v1\.json$/);
+    assert.equal(new Set(ids).size, 10, "every schema needs its own $id");
+    // v2 exists exactly once: the CP-H7 anchor envelope carries fields the v1
+    // payload never had, and rewriting v1 would invalidate CP-H1/CP-H2 evidence.
+    for (const id of ids) assert.match(id, /\.v[12]\.json$/);
+    assert.equal(ids.filter((id) => id.endsWith(".v2.json")).length, 1);
   });
 
   test("every schema closes its top-level object", () => {

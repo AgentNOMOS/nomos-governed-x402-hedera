@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nomos.example/schemas/gx402/hcs_anchor_evidence.v1.json",
+  "title": "NOMOS GX402 HCS Anchor Evidence v1",
+  "description": "Local record of one anchor submission and its independent mirror-node confirmation. CONFIRMED requires the on-chain bytes to equal the envelope bytes exactly.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "network",
+    "anchor_key",
+    "envelope",
+    "envelope_digest",
+    "envelope_bytes"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "nomos.gx402.hcs_anchor_evidence.v1"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "SUBMITTED",
+        "CONFIRMED",
+        "FAILED"
+      ],
+      "description": "CONFIRMED only after a mirror-node read-back matched the envelope byte for byte."
+    },
+    "network": {
+      "type": "string",
+      "const": "hedera:testnet",
+      "description": "Pinned to Hedera testnet. Mainnet documents are unrepresentable by construction."
+    },
+    "anchor_key": {
+      "type": "string",
+      "pattern": "^anc_[0-9a-f]{24}$",
+      "description": "Idempotency key over (network, receipt_id, record_digest). Same receipt ⇒ same key, forever."
+    },
+    "envelope": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://nomos.example/schemas/gx402/hcs_anchor_envelope.v2.json",
+      "title": "NOMOS GX402 HCS Anchor Envelope v2",
+      "description": "The exact message body submitted to a Hedera Consensus Service topic. Digests and identifiers only — never receipt content, keys, paths or personal data.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_version",
+        "canonicalization",
+        "created_at",
+        "digest_algorithm",
+        "env",
+        "network",
+        "purpose",
+        "receipt_id",
+        "receipt_schema_version",
+        "record_digest",
+        "schema",
+        "source_consensus_timestamp",
+        "source_transaction_id"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "nomos.gx402.anchor.v2"
+        },
+        "anchor_version": {
+          "type": "string",
+          "const": "v2"
+        },
+        "network": {
+          "type": "string",
+          "const": "hedera:testnet",
+          "description": "Pinned to Hedera testnet. Mainnet documents are unrepresentable by construction."
+        },
+        "receipt_id": {
+          "type": "string",
+          "pattern": "^poa_[0-9a-f]{24}$"
+        },
+        "record_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "The anchored value. MUST equal the receipt's record_digest."
+        },
+        "digest_algorithm": {
+          "type": "string",
+          "const": "sha256",
+          "description": "Hash function behind record_digest. The value itself is `sha256:<64 lowercase hex>`."
+        },
+        "canonicalization": {
+          "type": "string",
+          "const": "RFC8785-JCS/nomos-int-only-v1",
+          "description": "Profile under which record_digest is reproducible. Without it the digest is unverifiable."
+        },
+        "receipt_schema_version": {
+          "type": "string",
+          "const": "nomos.gx402.proof_of_action_receipt.v1",
+          "description": "Which receipt schema the anchored digest was computed under."
+        },
+        "source_transaction_id": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+@[0-9]+\\.[0-9]+$",
+          "description": "The Hedera payment the receipt attests. Lets a topic reader reach the payment."
+        },
+        "source_consensus_timestamp": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "description": "Consensus timestamp of that payment."
+        },
+        "created_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+          "description": "When the envelope was built. NOT the consensus time — that is assigned by the network."
+        },
+        "purpose": {
+          "type": "string",
+          "const": "proof-of-action receipt digest anchor",
+          "description": "Fixed literal. A free-text purpose would be a content channel."
+        },
+        "env": {
+          "type": "string",
+          "const": "TESTNET_DEMO_ONLY",
+          "description": "Machine-readable honesty flag: anyone reading the topic sees this is a testnet demo."
+        }
+      }
+    },
+    "envelope_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Digest of the canonical envelope bytes. Binds this record to what was sent."
+    },
+    "envelope_bytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1024,
+      "description": "Byte length of the submitted message. Bounded to one HCS chunk."
+    },
+    "topic_id": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Topic the message was submitted to.",
+      "nullable": true
+    },
+    "sequence_number": {
+      "type": "integer",
+      "minimum": 1,
+      "nullable": true
+    },
+    "transaction_id": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+@[0-9]+\\.[0-9]+$",
+      "nullable": true
+    },
+    "consensus_timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "nullable": true
+    },
+    "running_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]+$",
+      "maxLength": 192,
+      "nullable": true
+    },
+    "submitted_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "Local submit time.",
+      "nullable": true
+    },
+    "confirmed_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "When the mirror-node read-back succeeded.",
+      "nullable": true
+    },
+    "hashscan_url": {
+      "type": "string",
+      "maxLength": 512,
+      "nullable": true
+    },
+    "mirror_url": {
+      "type": "string",
+      "maxLength": 512,
+      "nullable": true
+    },
+    "failure_code": {
+      "type": "string",
+      "maxLength": 64,
+      "nullable": true
+    }
+  }
+}

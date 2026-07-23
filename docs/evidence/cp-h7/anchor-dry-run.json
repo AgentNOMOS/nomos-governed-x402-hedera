@@ -1,0 +1,47 @@
+{
+  "mode": "DRY_RUN",
+  "generated_at": "2026-07-23T14:13:06Z",
+  "receipt_path": "./docs/evidence/cp-h2/receipt.json",
+  "receipt_id": "poa_60a1c2220acb7ef835dcdca8",
+  "receipt_verdict": "VALID",
+  "anchor_key": "anc_cd5991bdb525e4662dc6f050",
+  "envelope": {
+    "schema": "nomos.gx402.anchor.v2",
+    "anchor_version": "v2",
+    "network": "hedera:testnet",
+    "receipt_id": "poa_60a1c2220acb7ef835dcdca8",
+    "record_digest": "sha256:2bf595c132c714fc375449c66eb05bc5e0d236d8f04cfba717b00fe9f71ecdb9",
+    "digest_algorithm": "sha256",
+    "canonicalization": "RFC8785-JCS/nomos-int-only-v1",
+    "receipt_schema_version": "nomos.gx402.proof_of_action_receipt.v1",
+    "source_transaction_id": "0.0.7162784@1784746988.798231156",
+    "source_consensus_timestamp": "1784746993.237232768",
+    "created_at": "2026-07-23T14:13:06Z",
+    "purpose": "proof-of-action receipt digest anchor",
+    "env": "TESTNET_DEMO_ONLY"
+  },
+  "envelope_canonical_utf8": "{\"anchor_version\":\"v2\",\"canonicalization\":\"RFC8785-JCS/nomos-int-only-v1\",\"created_at\":\"2026-07-23T14:13:06Z\",\"digest_algorithm\":\"sha256\",\"env\":\"TESTNET_DEMO_ONLY\",\"network\":\"hedera:testnet\",\"purpose\":\"proof-of-action receipt digest anchor\",\"receipt_id\":\"poa_60a1c2220acb7ef835dcdca8\",\"receipt_schema_version\":\"nomos.gx402.proof_of_action_receipt.v1\",\"record_digest\":\"sha256:2bf595c132c714fc375449c66eb05bc5e0d236d8f04cfba717b00fe9f71ecdb9\",\"schema\":\"nomos.gx402.anchor.v2\",\"source_consensus_timestamp\":\"1784746993.237232768\",\"source_transaction_id\":\"0.0.7162784@1784746988.798231156\"}",
+  "envelope_bytes": 585,
+  "envelope_digest": "sha256:45826d52435502c06fde3352aebde8bb9716cee5f695e33e028fb41c585201a3",
+  "guard": {
+    "allowed": false,
+    "blockers": [
+      "ANCHOR_DISABLED:NOMOS_GX402_ANCHOR_ENABLED is not true",
+      "NO_GRANT:.local/HCS_ANCHOR_AUTHORIZED is absent or not a valid grant document"
+    ],
+    "notes": []
+  },
+  "would_submit": {
+    "network": "hedera:testnet",
+    "topic_id": null,
+    "transactions": 2,
+    "transaction_sequence": [
+      "TopicCreateTransaction",
+      "TopicMessageSubmitTransaction"
+    ],
+    "message_bytes": 585,
+    "submitted": false,
+    "signed": false
+  },
+  "note": "Nothing was signed, submitted or persisted to the ledger. The Hedera SDK was not imported by this run."
+}

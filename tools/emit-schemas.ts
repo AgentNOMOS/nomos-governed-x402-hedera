@@ -19,7 +19,16 @@ mkdirSync(OUT, { recursive: true });
 
 let n = 0;
 for (const [name, schema] of Object.entries(ALL_SCHEMAS)) {
-  const file = join(OUT, `${name}.v1.json`);
+  // Filename follows the schema's own $id rather than a hardcoded `.v1`.
+  // Not all schemas are v1 any more — the CP-H7 anchor envelope is v2 — and a
+  // file whose name disagrees with the $id inside it is a trap for exactly the
+  // third-party verifier these files exist to serve.
+  const id = (schema as { $id?: string }).$id ?? "";
+  const basename = id.slice(id.lastIndexOf("/") + 1);
+  if (!basename.startsWith(`${name}.`) || !basename.endsWith(".json")) {
+    throw new Error(`schema "${name}" has $id "${id}" — filename cannot be derived from it`);
+  }
+  const file = join(OUT, basename);
   writeFileSync(file, `${JSON.stringify(schema, null, 2)}\n`, "utf8");
   console.log(`emitted ${file.slice(ROOT.length + 1)}`);
   n += 1;

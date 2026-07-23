@@ -78,6 +78,15 @@ const networkSchema = {
   description: "Pinned to Hedera testnet. Mainnet documents are unrepresentable by construction.",
 };
 
+/**
+ * Declared here rather than beside the other literals at the bottom of the file
+ * because schemas below embed them as `const` values, and a schema object is
+ * built at module-evaluation time — a later `const` would still be in its
+ * temporal dead zone.
+ */
+const CANONICALIZATION_ID_VALUE = "RFC8785-JCS/nomos-int-only-v1";
+const ENVIRONMENT_VALUE = "TESTNET_DEMO_ONLY";
+
 const agentIdentitySchema = {
   type: "object",
   additionalProperties: false,
@@ -440,6 +449,158 @@ export const HCS_ANCHOR_REFERENCE_SCHEMA = {
   },
 } as const satisfies Record<string, unknown>;
 
+// ── 7b. HCS anchor envelope — the bytes that actually go on-chain ───────────
+
+/**
+ * The CP-H7 on-chain message.
+ *
+ * `hcs_anchor_reference` above describes what we *learned* from anchoring
+ * (topic, sequence, consensus timestamp). This schema describes what we *say* —
+ * the message body itself. They are deliberately separate documents: one is
+ * authored by us and published, the other is observed from the ledger and can
+ * only be filled in after consensus.
+ *
+ * Every field is either a digest, an identifier, or a fixed literal. There is
+ * no field capable of holding request content, result content, a key, a path or
+ * a personal identifier, so no code path — not even a wrong one — can publish
+ * them. HCS messages are public and permanent; that property has to come from
+ * the type, not from care at the call site.
+ *
+ * The envelope carries `source_transaction_id` and `source_consensus_timestamp`
+ * so a reader who has only the topic can walk back to the payment that the
+ * anchored receipt describes, without holding the receipt.
+ */
+export const HCS_ANCHOR_ENVELOPE_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: `${BASE}/hcs_anchor_envelope.v2.json`,
+  title: "NOMOS GX402 HCS Anchor Envelope v2",
+  description:
+    "The exact message body submitted to a Hedera Consensus Service topic. Digests and " +
+    "identifiers only — never receipt content, keys, paths or personal data.",
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "anchor_version",
+    "canonicalization",
+    "created_at",
+    "digest_algorithm",
+    "env",
+    "network",
+    "purpose",
+    "receipt_id",
+    "receipt_schema_version",
+    "record_digest",
+    "schema",
+    "source_consensus_timestamp",
+    "source_transaction_id",
+  ],
+  properties: {
+    schema: { type: "string", const: "nomos.gx402.anchor.v2" },
+    anchor_version: { type: "string", const: "v2" },
+    network: networkSchema,
+    receipt_id: { type: "string", pattern: "^poa_[0-9a-f]{24}$" },
+    record_digest: digest("The anchored value. MUST equal the receipt's record_digest."),
+    digest_algorithm: {
+      type: "string",
+      const: "sha256",
+      description: "Hash function behind record_digest. The value itself is `sha256:<64 lowercase hex>`.",
+    },
+    canonicalization: {
+      type: "string",
+      const: CANONICALIZATION_ID_VALUE,
+      description: "Profile under which record_digest is reproducible. Without it the digest is unverifiable.",
+    },
+    receipt_schema_version: {
+      type: "string",
+      const: `nomos.gx402.proof_of_action_receipt.${SCHEMA_VERSION}`,
+      description: "Which receipt schema the anchored digest was computed under.",
+    },
+    source_transaction_id: {
+      type: "string",
+      pattern: PATTERN_TX_ID,
+      description: "The Hedera payment the receipt attests. Lets a topic reader reach the payment.",
+    },
+    source_consensus_timestamp: {
+      type: "string",
+      pattern: PATTERN_CONSENSUS_TS,
+      description: "Consensus timestamp of that payment.",
+    },
+    created_at: isoTime("When the envelope was built. NOT the consensus time — that is assigned by the network."),
+    purpose: {
+      type: "string",
+      const: "proof-of-action receipt digest anchor",
+      description: "Fixed literal. A free-text purpose would be a content channel.",
+    },
+    env: {
+      type: "string",
+      const: ENVIRONMENT_VALUE,
+      description: "Machine-readable honesty flag: anyone reading the topic sees this is a testnet demo.",
+    },
+  },
+} as const satisfies Record<string, unknown>;
+
+// ── 7c. HCS anchor evidence — what we may claim after consensus ─────────────
+
+/**
+ * The local evidence record written after a submit.
+ *
+ * `status` starts at SUBMITTED and only becomes CONFIRMED once the message has
+ * been read back from a mirror node and its bytes matched the envelope. Nothing
+ * may present an anchor as proven while this says SUBMITTED — the ledger, not
+ * our own optimism, decides when a digest is anchored.
+ */
+export const HCS_ANCHOR_EVIDENCE_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: `${BASE}/hcs_anchor_evidence.v1.json`,
+  title: "NOMOS GX402 HCS Anchor Evidence v1",
+  description:
+    "Local record of one anchor submission and its independent mirror-node confirmation. " +
+    "CONFIRMED requires the on-chain bytes to equal the envelope bytes exactly.",
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schema",
+    "status",
+    "network",
+    "anchor_key",
+    "envelope",
+    "envelope_digest",
+    "envelope_bytes",
+  ],
+  properties: {
+    schema: { type: "string", const: `nomos.gx402.hcs_anchor_evidence.${SCHEMA_VERSION}` },
+    status: {
+      type: "string",
+      enum: ["SUBMITTED", "CONFIRMED", "FAILED"],
+      description: "CONFIRMED only after a mirror-node read-back matched the envelope byte for byte.",
+    },
+    network: networkSchema,
+    anchor_key: {
+      type: "string",
+      pattern: "^anc_[0-9a-f]{24}$",
+      description: "Idempotency key over (network, receipt_id, record_digest). Same receipt ⇒ same key, forever.",
+    },
+    envelope: HCS_ANCHOR_ENVELOPE_SCHEMA,
+    envelope_digest: digest("Digest of the canonical envelope bytes. Binds this record to what was sent."),
+    envelope_bytes: {
+      type: "integer",
+      minimum: 1,
+      maximum: 1024,
+      description: "Byte length of the submitted message. Bounded to one HCS chunk.",
+    },
+    topic_id: { ...entityId("Topic the message was submitted to."), nullable: true },
+    sequence_number: { type: "integer", minimum: 1, nullable: true },
+    transaction_id: { type: "string", pattern: PATTERN_TX_ID, nullable: true },
+    consensus_timestamp: { type: "string", pattern: PATTERN_CONSENSUS_TS, nullable: true },
+    running_hash: { type: "string", pattern: "^[0-9a-f]+$", maxLength: 192, nullable: true },
+    submitted_at: { ...isoTime("Local submit time."), nullable: true },
+    confirmed_at: { ...isoTime("When the mirror-node read-back succeeded."), nullable: true },
+    hashscan_url: { type: "string", maxLength: 512, nullable: true },
+    mirror_url: { type: "string", maxLength: 512, nullable: true },
+    failure_code: { type: "string", maxLength: 64, nullable: true },
+  },
+} as const satisfies Record<string, unknown>;
+
 // ── 8. proof-of-action receipt ──────────────────────────────────────────────
 
 export const PROOF_OF_ACTION_RECEIPT_SCHEMA = {
@@ -545,6 +706,8 @@ export const ALL_SCHEMAS = {
   settlement_evidence: SETTLEMENT_EVIDENCE_SCHEMA,
   delivery_evidence: DELIVERY_EVIDENCE_SCHEMA,
   hcs_anchor_reference: HCS_ANCHOR_REFERENCE_SCHEMA,
+  hcs_anchor_envelope: HCS_ANCHOR_ENVELOPE_SCHEMA,
+  hcs_anchor_evidence: HCS_ANCHOR_EVIDENCE_SCHEMA,
   proof_of_action_receipt: PROOF_OF_ACTION_RECEIPT_SCHEMA,
 } as const;
 
@@ -554,7 +717,15 @@ export type SchemaName = keyof typeof ALL_SCHEMAS;
 export const DOMAIN_PREPAYMENT_DECISION = "NOMOS_GX402_PREPAYMENT_DECISION_V1";
 export const DOMAIN_PROOF_OF_ACTION = "NOMOS_GX402_PROOF_OF_ACTION_V1";
 
-export const CANONICALIZATION_ID = "RFC8785-JCS/nomos-int-only-v1";
-export const ENVIRONMENT = "TESTNET_DEMO_ONLY";
+export const CANONICALIZATION_ID = CANONICALIZATION_ID_VALUE;
+export const ENVIRONMENT = ENVIRONMENT_VALUE;
+
+/** CP-H7 anchor envelope literals. Exported so the builder cannot drift from the schema. */
+export const ANCHOR_ENVELOPE_SCHEMA_ID = "nomos.gx402.anchor.v2";
+export const ANCHOR_VERSION = "v2";
+export const ANCHOR_PURPOSE = "proof-of-action receipt digest anchor";
+export const ANCHOR_DIGEST_ALGORITHM = "sha256";
+/** `sha256:` + 64 lowercase hex. Stated explicitly because the envelope only names the algorithm. */
+export const ANCHOR_DIGEST_ENCODING = "prefixed-lowercase-hex";
 export const DISCLAIMER =
   "Demo artifact on Hedera testnet. Not a certification, not legal advice, not a guarantee of service quality.";

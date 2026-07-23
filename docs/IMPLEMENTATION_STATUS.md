@@ -52,7 +52,12 @@ mock warning. Mock artifacts still exist for the offline suite and still carry
 | Isolated payment signer process | `services/agent-client/src/signer-process.ts` | ✅ complete | **real** |
 | Pre-transaction safety gate | `tools/preflight-check.ts` | ✅ complete | **real**, 17 checks |
 | One-shot payment runner | `tools/run-payment.ts` | ✅ complete | **real**, dry-run default + one-payment lock |
-| Demo UI | `apps/demo-ui/` | ⬜ CP-H8 | **not built** |
+| Demo UI | `apps/demo-ui/` | ✅ CP-H8 | **real**, local only — presents CP-H2 evidence, refuses to render an anchor |
+| HCS anchor envelope v2 | `packages/hcs-anchor/src/anchor-envelope.ts` | ✅ CP-H7 prep | **real** bytes, nothing submitted |
+| HCS anchor verifier | `.../anchor-verifier.ts` | ✅ CP-H7 prep | **real**, offline; CONFIRMED needs an observation |
+| HCS anchor guard | `.../anchor-guard.ts` | ✅ CP-H7 prep | **real**, currently BLOCKED — no grant, no topic |
+| HCS anchor runner | `tools/anchor-receipt.ts` | 🟡 dry run only | `--execute` refuses; no SDK loaded on the dry path |
+| Standalone anchor verifier CLI | `tools/verify-anchor.ts` | ✅ CP-H7 prep | **real** |
 | Secret scanner | `tools/secret-scan.ts` | ✅ complete | **real** |
 | Standalone verifier CLI | `tools/verify-receipt.ts` | ✅ complete | **real** |
 
@@ -66,9 +71,15 @@ observation instead of a mirror-node response. So the negative tests written
 today keep their meaning when the data source is swapped in CP-H2. What is
 missing is the chain, not the logic.
 
-`MockHcsAnchor` produces real anchor *payload bytes* (CP-H7 submits exactly
-those) and simulates sequencing and read-back. No SDK is imported, no client is
+`MockHcsAnchor` produces real anchor *payload bytes* for the v1 payload and
+simulates sequencing and read-back. No SDK is imported, no client is
 constructed, no message is sent.
+
+CP-H7 preparation superseded that payload for submission purposes: the bytes an
+operator would actually publish come from `buildAnchorEnvelope` (v2), which adds
+the algorithm, canonicalization profile, receipt schema and source payment that
+a topic reader needs in order to verify without holding the receipt. v1 is left
+untouched because CP-H1 and CP-H2 evidence asserts its shape.
 
 ## Test inventory
 
@@ -116,4 +127,10 @@ from auto-account creation and the code read `transactions[0]`. Fixed in
 `selectUserTransaction`, regression-tested in `tests/unit/child-records.test.ts`.
 Full account in `docs/evidence/CP-H2-REPORT.md` §4.
 
-**Next:** CP-H7 (HCS anchor), CP-H8 (demo UI), and the bounty video.
+**Next:** CP-H7 execution (one topic create + one message submit, both awaiting
+operator approval — see `docs/CP-H7-TRANSACTION-PLAN.md`), the bounty video, and
+the public repository.
+
+**Not anchored.** `poa_60a1c2220acb7ef835dcdca8` carries `anchor: null` and is
+fully valid without one. No HCS topic exists for this project; the payer account
+has exactly two transactions, both CRYPTOTRANSFER.

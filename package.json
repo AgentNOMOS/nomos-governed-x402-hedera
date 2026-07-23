@@ -23,11 +23,15 @@
     "hedera:preflight": "node tools/preflight-check.ts",
     "hedera:dryrun": "node tools/run-payment.ts",
     "hedera:execute": "node tools/run-payment.ts --execute",
+    "anchor:dryrun": "node tools/anchor-receipt.ts",
+    "anchor:execute": "node tools/anchor-receipt.ts --execute",
+    "anchor:verify": "node tools/verify-anchor.ts",
     "demo:build": "node apps/demo-ui/src/build.ts",
     "demo:check": "node apps/demo-ui/src/build.ts --check",
     "demo:preview": "node apps/demo-ui/serve.ts"
   },
   "dependencies": {
+    "@hiero-ledger/sdk": "2.85.0",
     "@x402/core": "2.19.0",
     "@x402/hedera": "2.19.0"
   },
@@ -38,6 +42,12 @@
     "CP-H2 adds exactly one dependency family, @x402/hedera and its @x402/core",
     "peer, used only by the REAL Hedera path: hedera-signer.ts, real-adapter.ts,",
     "the signer process and the tools/ scripts. Nothing under tests/ imports it,",
-    "which is why the test suite keeps working with node_modules deleted."
+    "which is why the test suite keeps working with node_modules deleted.",
+    "CP-H7 promotes @hiero-ledger/sdk from a transitive dependency of @x402/hedera",
+    "to a direct one, pinned to the exact version @x402/hedera already resolves",
+    "(2.85.0), so no new code enters the tree. It is needed because @x402/hedera",
+    "re-exports the transfer classes but not the consensus-service ones. It is",
+    "imported dynamically, inside the anchor guard's allowed branch only, so an",
+    "anchor dry run still loads no SDK at all."
   ]
 }
