@@ -82,9 +82,12 @@ signature.
 
 ## The two graphics
 
-`public/assets/` expects `nomosdemo.png` and `1779269452389.jpg`. Neither is in
-the repository yet; until they are, the page shows a named slot rather than a
-broken image or an invented diagram. See `public/assets/README.md`.
+`public/assets/nomosdemo.png` is the primary architecture visual and the social
+preview; `public/assets/AgentNOMOS-12-Layer-Architecture-v1.png` is the detail
+view inside the collapsed twelve-layer disclosure. Both are committed, both are
+declared at their intrinsic size, both are lazy-loaded because both sit far below
+the fold. If either file goes missing the page falls back to a named slot rather
+than a broken image or an invented diagram. See `public/assets/README.md`.
 
 ## Honest status, as the page states it
 

@@ -1,30 +1,34 @@
-# Asset slots
+# Architecture assets
 
-Two architecture graphics are referenced by the page and are **not in this
-repository**. Until each file is present at the exact path below, the page shows
-a named, dashed slot in its place — deliberately, rather than a broken image or
-an invented substitute diagram.
+Two graphics, both supplied for CP-H8 and both present.
 
-| Expected file | Where it appears | What it shows |
-|---|---|---|
-| `nomosdemo.png` | §06 *NOMOS architecture*, above the fold of that section, and as the `og:image` / `twitter:image` social preview | NOMOS as the governance centre of a federated agent ecosystem — the primary visual motif |
-| `1779269452389.jpg` | §06, inside the collapsed **“Technical architecture — the twelve layers”** disclosure | The detailed twelve-layer architecture view |
+| File | Intrinsic size | Where it appears | What it shows |
+|---|---|---|---|
+| `nomosdemo.png` | 1254 × 1254 | §06 *NOMOS architecture*, and as the `og:image` / `twitter:image` social preview | NOMOS as the governance centre of a federated agent ecosystem — the primary visual motif |
+| `AgentNOMOS-12-Layer-Architecture-v1.png` | 1536 × 1024 | §06, inside the collapsed **“Technical architecture — the AgentNOMOS twelve layers”** disclosure | The AgentNOMOS twelve-layer governance architecture, ATLAS through ORBIS |
 
-Drop the files here and reload. Nothing else needs to change: `index.html`
-already references them, `app.js` hides the slot as soon as an image decodes,
-and `tests/unit/demo-ui-page.test.ts` asserts both references and both slots
-exist.
+Both were re-encoded losslessly on commit (PNG, `optimize=True`); the pixel data
+is byte-identical to what was supplied and no dimension was changed. Neither
+diagram's content was edited.
 
-## Before committing an image
+The page declares each image's intrinsic `width`/`height`, so the box is reserved
+before the file arrives and the aspect ratio is the image's own — `object-fit:
+contain` backs that up. Both sit far below the fold, so both are `loading="lazy"`.
 
-* Keep the technical content unchanged. These are the supplied graphics; the
-  only permitted processing is lossless or near-lossless size reduction for web
-  delivery.
-* Prefer a width around 1600–2000 px. The frame is fluid, so anything wider is
-  bandwidth without benefit.
-* `nomosdemo.png` doubles as the social preview. A 1200×630 crop is the
-  conventional aspect ratio if one is needed; the full diagram is used as-is
-  otherwise.
+## If a file goes missing
+
+`app.js` swaps in a named slot naming the exact path it expects, rather than
+showing a broken image or a substitute diagram. `tests/unit/demo-ui-page.test.ts`
+asserts both references, both slots and both files.
+
+## Before replacing an image
+
+* Keep the technical content unchanged. The only permitted processing is lossless
+  or near-lossless size reduction for web delivery.
+* Update the `width`/`height` attributes in `index.html` if the dimensions change,
+  and the `og:image:width` / `og:image:height` meta tags for `nomosdemo.png`.
+* Update the alt text. It describes what is actually in the diagram, and a stale
+  one is worse than a short one.
 * The secret scanner skips binary extensions, so an image is never scanned for
   key material. Check by eye that no diagram contains an account id, a topic id
-  or an internal path before it is committed.
+  or an internal path. Both current files were checked and contain none.

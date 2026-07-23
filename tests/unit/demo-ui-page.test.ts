@@ -458,20 +458,131 @@ describe("demo page — the local preview server is read-only", () => {
   });
 });
 
-describe("demo page — asset slots", () => {
-  test("both graphics are referenced at a stated path, with a named slot behind them", () => {
-    for (const asset of ["nomosdemo.png", "1779269452389.jpg"]) {
-      assert.match(html, new RegExp(`src="assets/${asset.replace(".", "\\.")}"`), `${asset} is not referenced`);
-      assert.match(html, new RegExp(`data-asset-slot="${asset.replace(".", "\\.")}"`), `${asset} has no slot`);
+describe("demo page — the architecture graphics", () => {
+  /** file → [intrinsic width, intrinsic height]. Read from the files themselves. */
+  const ASSETS: readonly (readonly [string, string])[] = [
+    ["nomosdemo.png", "primary"],
+    ["AgentNOMOS-12-Layer-Architecture-v1.png", "twelve-layer detail"],
+  ];
+
+  /** Intrinsic size straight out of the PNG IHDR — no image library needed. */
+  function pngSize(rel: string): { width: number; height: number } {
+    const bytes = readFileSync(join(REPO_ROOT, rel));
+    assert.equal(bytes.subarray(1, 4).toString("ascii"), "PNG", `${rel} is not a PNG`);
+    assert.equal(bytes.subarray(12, 16).toString("ascii"), "IHDR", `${rel} has no IHDR`);
+    return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+  }
+
+  for (const [asset, role] of ASSETS) {
+    const rel = `${PUBLIC}/assets/${asset}`;
+    const escaped = asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    test(`the ${role} graphic exists on disk`, () => {
+      const bytes = readFileSync(join(REPO_ROOT, rel));
+      assert.ok(bytes.length > 1024, `${rel} is suspiciously small`);
+    });
+
+    test(`the ${role} graphic is referenced, with a named slot behind it`, () => {
+      assert.match(html, new RegExp(`src="assets/${escaped}"`), `${asset} is not referenced`);
+      assert.match(html, new RegExp(`data-asset-slot="${escaped}"`), `${asset} has no slot`);
+      assert.match(html, new RegExp(`<strong>${escaped}</strong>`), `${asset}'s slot does not name it`);
+    });
+
+    test(`the ${role} graphic declares its true intrinsic size`, () => {
+      const { width, height } = pngSize(rel);
+      const tag = html.match(new RegExp(`<img src="assets/${escaped}"[^>]*>`))?.[0];
+      assert.ok(tag, `no <img> for ${asset}`);
+      assert.match(tag, new RegExp(`width="${width}"`), `declared width does not match the file (${width})`);
+      assert.match(tag, new RegExp(`height="${height}"`), `declared height does not match the file (${height})`);
+    });
+  }
+
+  test("the retired placeholder is referenced nowhere", () => {
+    for (const source of [html, css, app, read("apps/demo-ui/README.md"), read(`${PUBLIC}/assets/README.md`)]) {
+      assert.doesNotMatch(source, /1779269452389/, "the old placeholder filename is still referenced");
     }
-    assert.match(html, /Asset slot — image not present/);
-    assert.match(html, /No substitute diagram has been invented/);
+  });
+
+  test("every image lives below the fold, so lazy loading is right for all of them", () => {
+    const imgs = html.match(/<img\b[^>]*>/g) ?? [];
+    assert.equal(imgs.length, 2, "an image was added; re-check whether it is above the fold");
+    for (const img of imgs) {
+      assert.match(img, /loading="lazy"/, `${img} is not lazy`);
+      assert.match(img, /decoding="async"/, `${img} blocks decode`);
+    }
+    // Both sit inside #architecture, which is the sixth section of eight.
+    const architecture = html.slice(html.indexOf('<section id="architecture"'), html.indexOf('<section id="limits"'));
+    assert.equal((architecture.match(/<img\b/g) ?? []).length, 2, "an image escaped the architecture section");
+  });
+
+  test("nothing crops or stretches a diagram", () => {
+    assert.match(css, /\.figure-frame img\s*\{[^}]*height:\s*auto/s);
+    assert.match(css, /\.figure-frame img\s*\{[^}]*object-fit:\s*contain/s);
+    assert.match(css, /\.figure-frame img\s*\{[^}]*max-width:\s*100%/s);
+    assert.doesNotMatch(css, /object-fit:\s*cover/);
   });
 
   test("a missing graphic degrades to the slot rather than a broken image", () => {
+    assert.match(html, /Asset slot — image not present/);
+    assert.match(html, /No substitute diagram has been invented/);
     assert.match(app, /wireAssetSlots/);
     assert.match(app, /naturalWidth === 0/);
     assert.match(app, /addEventListener\("error", showSlot\)/);
+    // The slot is hidden in the markup and only revealed on failure, so a
+    // present image never flashes a "missing" panel.
+    assert.equal((html.match(/<div class="slot" hidden>/g) ?? []).length, 2);
+  });
+
+  test("the social preview points at the primary graphic, at its real size", () => {
+    const { width, height } = pngSize(`${PUBLIC}/assets/nomosdemo.png`);
+    assert.match(html, /<meta property="og:image" content="assets\/nomosdemo\.png">/);
+    assert.match(html, /<meta name="twitter:image" content="assets\/nomosdemo\.png">/);
+    assert.match(html, new RegExp(`<meta property="og:image:width" content="${width}">`));
+    assert.match(html, new RegExp(`<meta property="og:image:height" content="${height}">`));
+    assert.match(html, /<meta property="og:image:alt"/);
+    assert.match(html, /<meta name="twitter:image:alt"/);
+  });
+
+  test("the twelve-layer material is named and described as AgentNOMOS", () => {
+    const architecture = html.slice(html.indexOf('<section id="architecture"'), html.indexOf('<section id="limits"'));
+    assert.match(architecture, /<summary>Technical architecture — the AgentNOMOS twelve layers<\/summary>/);
+    assert.match(architecture, /<figcaption>\s*AgentNOMOS twelve-layer governance architecture \(detail view\)\./);
+    assert.match(architecture, /alt="AgentNOMOS twelve-layer governance architecture/);
+    assert.doesNotMatch(html, /NOMOS Protocol/i, "the retired NOMOS Protocol naming must not reappear");
+  });
+
+  test("each diagram can be opened at full size — they are dense on a phone", () => {
+    for (const [asset] of ASSETS) {
+      const escaped = asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const link = html.match(new RegExp(`<a class="figure-link" href="assets/${escaped}"[^>]*>`))?.[0];
+      assert.ok(link, `${asset} has no full-size link`);
+      assert.match(link, /target="_blank"/);
+      assert.match(link, /rel="noopener noreferrer"/);
+      const { width, height } = pngSize(`${PUBLIC}/assets/${asset}`);
+      const label = html.match(new RegExp(`href="assets/${escaped}"[^>]*>([^<]+)`))?.[1] ?? "";
+      assert.match(label.replace(/&nbsp;/g, " "), new RegExp(`${width} × ${height}`), `the link mis-states the size of ${asset}`);
+    }
+  });
+
+  test("alt text describes what is actually in each diagram", () => {
+    const alts = [...html.matchAll(/<img\b[^>]*\balt="([^"]+)"/g)].map((m) => m[1]);
+    assert.equal(alts.length, 2);
+    for (const alt of alts) {
+      assert.ok(alt.length > 80, `alt text is too thin to replace the image: "${alt}"`);
+      assert.doesNotMatch(alt, /^(image|diagram|graphic|picture) of/i, "alt text should not announce itself as an image");
+    }
+    // The layer names are the diagram's own content; a stale alt would drift.
+    const detail = alts.find((a) => a.startsWith("AgentNOMOS"));
+    assert.ok(detail);
+    for (const layer of ["ATLAS", "AURUM", "LOGOS", "SCRIBE", "AEGIS", "MERCURY", "ARGUS", "ARCHON", "NOMOS", "AGORA", "FOEDUS", "ORBIS"]) {
+      assert.match(detail, new RegExp(`\\b${layer}\\b`), `${layer} is missing from the detail alt text`);
+    }
+  });
+
+  test("the twelve layers are presented as design, not as implemented or evidenced", () => {
+    const architecture = html.slice(html.indexOf('<section id="architecture"'), html.indexOf('<section id="limits"'));
+    assert.match(architecture, /no part of this page claims\s+they are implemented or exercised/);
+    assert.doesNotMatch(architecture, /all twelve layers (are|were) (implemented|built|running|deployed)/i);
   });
 });
 
