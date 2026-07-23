@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOMOS Governed x402 Settlement — Hedera Testnet Evidence</title>
+
+<meta name="description" content="A policy-bound autonomous payment, executed on Hedera Testnet and verified against ledger evidence. Recorded evidence from checkpoint CP-H2: settlement, Mirror Node verification and a tamper-evident Proof-of-Action receipt.">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="index, follow">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="NOMOS Governed x402 Settlement — Hedera Testnet Evidence">
+<meta property="og:description" content="A policy-bound autonomous payment, executed on Hedera Testnet and verified against Hedera Mirror Node evidence, with a tamper-evident Proof-of-Action receipt.">
+<meta property="og:image" content="assets/nomosdemo.png">
+<meta property="og:image:alt" content="NOMOS as the governance centre of a federated agent ecosystem.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="NOMOS Governed x402 Settlement — Hedera Testnet Evidence">
+<meta name="twitter:description" content="A policy-bound autonomous payment on Hedera Testnet, verified against Mirror Node evidence.">
+<meta name="twitter:image" content="assets/nomosdemo.png">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23050a14'/%3E%3Cpath d='M9 23V9l14 14V9' fill='none' stroke='%2338e1ff' stroke-width='2.6' stroke-linecap='square'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a class="skip" href="#proof">Skip to the proof summary</a>
+
+<!-- Always-on environment rail. Nothing on this page is a mainnet claim. -->
+<header class="rail" role="banner">
+  <div class="rail-in">
+    <a class="mark" href="#top" aria-label="NOMOS — top of page">
+      <svg class="mark-glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <path d="M9 23V9l14 14V9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"/>
+      </svg>
+      <span class="mark-word">NOMOS</span>
+    </a>
+    <div class="rail-chips">
+      <span class="chip chip--net"><span class="dot" aria-hidden="true"></span>Hedera&nbsp;Testnet</span>
+      <span class="chip chip--mode">Recorded&nbsp;evidence</span>
+      <span class="chip chip--cp" data-bind="checkpoint">CP-H2</span>
+    </div>
+  </div>
+</header>
+
+<!-- Rendered only when the evidence model loaded and self-verified. -->
+<div id="integrity-alert" class="alert" role="alert" hidden>
+  <h2 class="alert-title">Evidence unavailable</h2>
+  <p class="alert-body" id="integrity-reason"></p>
+  <p class="alert-note">
+    Nothing is claimed on this page while its evidence cannot be loaded and checked.
+    The canonical artifacts remain readable in the repository under
+    <code>docs/evidence/cp-h2/</code>.
+  </p>
+</div>
+
+<main id="top" class="page" hidden>
+
+  <!-- ── A. HERO ──────────────────────────────────────────────────────── -->
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-rule" aria-hidden="true"></span>From proof of payment to proof of action</p>
+        <h1 id="hero-title">NOMOS Governed<br><em>x402 Settlement</em></h1>
+        <p class="lede">
+          A policy-bound autonomous payment, executed on Hedera Testnet and verified
+          against ledger evidence.
+        </p>
+        <p class="badge">
+          <svg class="badge-glyph" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M8 1.4 2.6 3.6v4.1c0 3 2.2 5.6 5.4 6.9 3.2-1.3 5.4-3.9 5.4-6.9V3.6Z" fill="none" stroke="currentColor" stroke-width="1.3"/>
+            <path d="m5.5 7.9 1.8 1.8 3.3-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          Verified Testnet Demonstration
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn--primary" href="#evidence">
+            View settlement evidence
+            <span class="btn-arrow" aria-hidden="true">→</span>
+          </a>
+          <a class="btn btn--ghost" href="#flow">
+            Explore verification chain
+            <span class="btn-arrow" aria-hidden="true">→</span>
+          </a>
+        </div>
+      </div>
+
+      <aside class="seal" aria-label="Settlement summary">
+        <div class="seal-head">
+          <span class="seal-label">Settled transaction</span>
+          <span class="seal-status" data-bind="chain.transaction_status">—</span>
+        </div>
+        <p class="seal-tx" data-bind="chain.transaction_id">—</p>
+        <dl class="seal-facts">
+          <div><dt>Amount</dt><dd data-bind="chain.amount_display">—</dd></div>
+          <div><dt>Network</dt><dd data-bind="chain.network_label">—</dd></div>
+          <div><dt>Memo · quote_id</dt><dd class="wrap" data-bind="chain.memo">—</dd></div>
+          <div><dt>Receipt</dt><dd class="wrap" data-bind="receipt.receipt_id">—</dd></div>
+        </dl>
+        <p class="seal-foot">
+          Verified against <strong>Hedera Mirror Node</strong> evidence ·
+          finality <span data-bind="chain.settlement_finality">—</span>
+        </p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ── B. PROOF SUMMARY ─────────────────────────────────────────────── -->
+  <section id="proof" class="band" aria-labelledby="proof-title">
+    <div class="band-head">
+      <h2 id="proof-title"><span class="sec-no">01</span>Proof summary</h2>
+      <p class="band-note">
+        Recorded evidence, read from committed artifacts at build time. This page
+        performs no live query, so nothing here is presented as “live”.
+      </p>
+    </div>
+    <ul class="cards" id="cards"></ul>
+  </section>
+
+  <!-- ── C. GOVERNED PAYMENT FLOW ─────────────────────────────────────── -->
+  <section id="flow" class="band" aria-labelledby="flow-title">
+    <div class="band-head">
+      <h2 id="flow-title"><span class="sec-no">02</span>Governed payment flow</h2>
+      <p class="band-note">
+        Eight links, each committing to the one before it. The chain is what makes
+        the payment mean something more specific than “money moved”.
+      </p>
+    </div>
+
+    <div class="binding" role="note">
+      <p class="binding-title">The binding</p>
+      <div class="binding-pair">
+        <div class="binding-side">
+          <span class="binding-tag">quote_id</span>
+          <code class="binding-val" data-bind="chain.quote_id">—</code>
+          <span class="binding-where">issued by the policy decision, in the 402 challenge</span>
+        </div>
+        <div class="binding-link" aria-hidden="true">
+          <span class="binding-eq">≡</span>
+        </div>
+        <div class="binding-side">
+          <span class="binding-tag">on-chain memo</span>
+          <code class="binding-val" data-bind="chain.memo">—</code>
+          <span class="binding-where">in the Hedera transaction, on the public ledger</span>
+        </div>
+      </div>
+      <p class="binding-why">
+        Without this equality a verifier can establish only that <em>someone sent the
+        right amount to the right account</em>. With it, the ledger itself names the
+        quote that was paid for — and that quote is bound to one specific request
+        hash and one specific policy decision. A payment carrying a missing or
+        foreign memo buys nothing.
+      </p>
+    </div>
+
+    <ol class="flow" id="flow-steps"></ol>
+  </section>
+
+  <!-- ── D. ON-CHAIN EVIDENCE ─────────────────────────────────────────── -->
+  <section id="evidence" class="band" aria-labelledby="evidence-title">
+    <div class="band-head">
+      <h2 id="evidence-title"><span class="sec-no">03</span>On-chain evidence</h2>
+      <p class="band-note">
+        Public values only. No key material, no internal path and no secret appears
+        on this page or in the files that build it.
+      </p>
+    </div>
+
+    <dl class="fields" id="fields"></dl>
+
+    <div class="links">
+      <a class="btn btn--ghost btn--sm" id="link-mirror" href="#" target="_blank" rel="noopener noreferrer external">
+        Mirror Node record<span class="btn-ext" aria-hidden="true">↗</span>
+      </a>
+      <a class="btn btn--ghost btn--sm" id="link-hashscan" href="#" target="_blank" rel="noopener noreferrer external">
+        HashScan<span class="btn-ext" aria-hidden="true">↗</span>
+      </a>
+      <p class="links-note">
+        The Mirror Node record is the source the verification actually used. The
+        HashScan link is offered for human inspection: HashScan is a client-rendered
+        application that serves 404 to non-browser clients, so it could not be
+        machine-checked and is not treated as evidence.
+      </p>
+    </div>
+
+    <table class="matrix">
+      <caption>Verification results recorded at CP-H2</caption>
+      <thead>
+        <tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Detail</th></tr>
+      </thead>
+      <tbody id="matrix-body"></tbody>
+    </table>
+  </section>
+
+  <!-- ── E. PROOF-OF-ACTION ───────────────────────────────────────────── -->
+  <section id="poa" class="band" aria-labelledby="poa-title">
+    <div class="band-head">
+      <h2 id="poa-title"><span class="sec-no">04</span>Proof of Action</h2>
+      <p class="band-note">Two different documents, routinely confused.</p>
+    </div>
+
+    <div class="compare">
+      <article class="compare-card">
+        <h3>Proof of Payment</h3>
+        <p>
+          Evidences the ledger transfer: this amount, from this account, to that
+          account, at this consensus time. It is a receipt for a <em>transfer</em>.
+        </p>
+        <p class="compare-gap">
+          It cannot say who was allowed to spend, what was bought, whether anything
+          was delivered, or whether the delivered thing is the thing that was paid for.
+        </p>
+      </article>
+      <article class="compare-card compare-card--accent">
+        <h3>Proof of Action</h3>
+        <p>
+          Binds payment, request, policy decision, execution and result into one
+          signed, tamper-evident record. It is a receipt for a <em>transaction</em>
+          in the older sense of the word.
+        </p>
+        <p class="compare-gap">
+          Only hashes travel. The record type has no field capable of carrying request
+          or result content, on chain or in the receipt.
+        </p>
+      </article>
+    </div>
+
+    <div class="receipt-panel">
+      <div class="receipt-head">
+        <div>
+          <p class="receipt-label">Canonical proof-of-action receipt</p>
+          <p class="receipt-id" data-bind="receipt.receipt_id">—</p>
+        </div>
+        <p class="verdict" data-bind="receipt.verdict">—</p>
+      </div>
+
+      <dl class="receipt-facts">
+        <div><dt>record_digest</dt><dd class="wrap mono" data-bind="receipt.record_digest">—</dd></div>
+        <div><dt>Signature</dt><dd class="mono" data-bind="receipt.signature.alg">—</dd></div>
+        <div><dt>Key id</dt><dd class="wrap mono" data-bind="receipt.signature.kid">—</dd></div>
+        <div><dt>Domain</dt><dd class="wrap mono" data-bind="receipt.signature.signature_domain">—</dd></div>
+        <div><dt>Canonicalization</dt><dd class="wrap mono" data-bind="receipt.signature.canonicalization">—</dd></div>
+        <div><dt>HCS anchor</dt><dd class="pending" data-bind="receipt.anchor_status">—</dd></div>
+      </dl>
+
+      <div class="recompute">
+        <p class="recompute-lede">
+          You do not have to take the digest on trust. This recomputes SHA-256 over the
+          canonical form of the receipt record <strong>in your browser</strong> and
+          compares it with the digest the receipt carries — and it repeats the same
+          check against a deliberately altered copy. It reads the committed receipt.
+          It does not create, re-sign or alter one.
+        </p>
+        <div class="recompute-actions">
+          <button class="btn btn--primary btn--sm" type="button" id="recompute">Recompute digest in this browser</button>
+          <span class="recompute-hint" id="recompute-hint">SHA-256 over RFC 8785 (JCS) canonical bytes.</span>
+        </div>
+        <ul class="recompute-out" id="recompute-out" aria-live="polite"></ul>
+      </div>
+
+      <details class="disclose">
+        <summary>Verify it yourself, without this page</summary>
+        <div class="disclose-body">
+          <p>
+            The standalone verifier recomputes every digest from the receipt’s own
+            contents and checks the signature against <em>the key set you supply</em> —
+            not the one the document asserts about itself.
+          </p>
+          <pre class="code" data-bind="receipt.verify_command">—</pre>
+        </div>
+      </details>
+
+      <details class="disclose">
+        <summary>The signed record, in full</summary>
+        <div class="disclose-body">
+          <p>Exactly the bytes that were canonicalized and signed. Hashes stand in for content by design.</p>
+          <pre class="code code--scroll" id="record-json">—</pre>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ── F. FAIL-CLOSED EVIDENCE ──────────────────────────────────────── -->
+  <section id="failclosed" class="band" aria-labelledby="fc-title">
+    <div class="band-head">
+      <h2 id="fc-title"><span class="sec-no">05</span>Fail-closed evidence</h2>
+      <p class="band-note">The most instructive thing that happened, kept in.</p>
+    </div>
+
+    <div class="fc">
+      <div class="fc-copy">
+        <p class="fc-lede">
+          The payment was correct on chain — right amount, right payee, right memo —
+          and <strong>the verifier refused it</strong>.
+        </p>
+        <p>
+          <span class="fc-cause" data-bind="failClosed.cause">—</span>
+        </p>
+        <p class="fc-fix">
+          <strong>Fix.</strong> <span data-bind="failClosed.fix">—</span>
+        </p>
+        <p class="fc-fix">
+          <strong>Regression.</strong> <span data-bind="failClosed.regression">—</span>
+        </p>
+        <ul class="fc-points" id="fc-points"></ul>
+      </div>
+
+      <figure class="fc-log">
+        <figcaption>Recorded refusal · <code data-bind="failClosed.outcome">—</code></figcaption>
+        <pre class="code" id="fc-log-body">—</pre>
+        <p class="fc-log-note">
+          Read from <code>docs/evidence/cp-h2/execute-run.json</code>, the run that
+          produced the refusal. It was not edited afterwards.
+        </p>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ── G. NOMOS ARCHITECTURE ────────────────────────────────────────── -->
+  <section id="architecture" class="band" aria-labelledby="arch-title">
+    <div class="band-head">
+      <h2 id="arch-title"><span class="sec-no">06</span>NOMOS architecture</h2>
+      <p class="band-note">
+        Payment is one link in a governance chain, not the chain itself.
+      </p>
+    </div>
+
+    <figure class="figure">
+      <div class="figure-frame" data-asset-slot="nomosdemo.png">
+        <img src="assets/nomosdemo.png" alt="NOMOS as the governance centre of a federated agent ecosystem: external agents reach services only through identity, policy, risk and evidence checks." loading="lazy" decoding="async">
+        <div class="slot" hidden>
+          <p class="slot-title">Asset slot — image not present</p>
+          <p class="slot-path">apps/demo-ui/public/assets/<strong>nomosdemo.png</strong></p>
+          <p class="slot-note">
+            Drop the file at that exact path and reload; nothing else needs to change.
+            No substitute diagram has been invented in its place.
+          </p>
+        </div>
+      </div>
+      <figcaption>NOMOS as the governance centre of a federated agent ecosystem.</figcaption>
+    </figure>
+
+    <ul class="tenets">
+      <li><span class="tenet-no">01</span><p><strong>External agents do not execute unchecked.</strong> A request reaches a service only after identity and delegated authority have been established.</p></li>
+      <li><span class="tenet-no">02</span><p><strong>Policy decides before money moves.</strong> Network, asset, payee, amount, spend caps, quote lifetime and nonce are all evaluated before a price is quoted.</p></li>
+      <li><span class="tenet-no">03</span><p><strong>Refusals are evidence too.</strong> ALLOW, DENY and REVIEW all produce a signed decision carrying the same complete field set. A denial nobody can audit is not governance.</p></li>
+      <li><span class="tenet-no">04</span><p><strong>Delivery is gated on settlement, not on verification.</strong> Work is released only after a final, memo-bound settlement read from the ledger.</p></li>
+      <li><span class="tenet-no">05</span><p><strong>Decisions stay reconstructable and bounded.</strong> Every step commits to a hash the next step carries, and the caps that constrain the agent are part of the signed record.</p></li>
+    </ul>
+
+    <details class="disclose disclose--wide">
+      <summary>Technical architecture — the twelve layers</summary>
+      <div class="disclose-body">
+        <p>
+          The detailed layer view. It is deliberately not the first thing on this page:
+          the governance argument above is the part that has to land first.
+        </p>
+        <figure class="figure figure--flush">
+          <div class="figure-frame" data-asset-slot="1779269452389.jpg">
+            <img src="assets/1779269452389.jpg" alt="Detailed NOMOS twelve-layer architecture diagram." loading="lazy" decoding="async">
+            <div class="slot" hidden>
+              <p class="slot-title">Asset slot — image not present</p>
+              <p class="slot-path">apps/demo-ui/public/assets/<strong>1779269452389.jpg</strong></p>
+              <p class="slot-note">
+                Drop the file at that exact path and reload. No substitute diagram has
+                been invented in its place.
+              </p>
+            </div>
+          </div>
+          <figcaption>NOMOS twelve-layer architecture (detail view).</figcaption>
+        </figure>
+      </div>
+    </details>
+  </section>
+
+  <!-- ── H. LIMITATIONS ───────────────────────────────────────────────── -->
+  <section id="limits" class="band" aria-labelledby="limits-title">
+    <div class="band-head">
+      <h2 id="limits-title"><span class="sec-no">07</span>Honest status</h2>
+      <p class="band-note">What this demonstration is, and what it is not.</p>
+    </div>
+    <ul class="limits" id="limits-list"></ul>
+    <p class="claim">
+      <span class="claim-mark" aria-hidden="true">“</span>
+      NOMOS executed a policy-bound x402 payment on Hedera Testnet, verified the
+      settlement against Mirror Node evidence, and produced a tamper-evident
+      Proof-of-Action receipt.
+    </p>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="foot-in">
+    <p class="foot-mark">NOMOS · Governed x402 on Hedera</p>
+    <p class="foot-note" data-bind="disclaimer">—</p>
+    <p class="foot-src">
+      Rendered from <span id="foot-sources">the canonical CP-H2 artifacts</span>. Apache-2.0.
+    </p>
+  </div>
+</footer>
+
+<div class="sr-live" id="live" role="status" aria-live="polite"></div>
+
+<noscript>
+  <div class="alert alert--noscript">
+    <h2 class="alert-title">This page renders its evidence with JavaScript</h2>
+    <p class="alert-body">
+      Every value shown here is read from a generated, read-only evidence module so
+      that no number is transcribed by hand into the markup. With scripting disabled
+      there is nothing to display, and no claim is made.
+    </p>
+    <p class="alert-note">
+      The same evidence is readable directly as JSON in
+      <code>docs/evidence/cp-h2/</code>, and verifiable offline with
+      <code>node tools/verify-receipt.ts</code>.
+    </p>
+  </div>
+</noscript>
+
+<script src="jcs.js"></script>
+<script src="evidence-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

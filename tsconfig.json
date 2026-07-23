@@ -28,6 +28,6 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "include": ["packages/**/*.ts", "services/**/*.ts", "tests/**/*.ts", "tools/**/*.ts"],
+  "include": ["packages/**/*.ts", "services/**/*.ts", "tests/**/*.ts", "tools/**/*.ts", "apps/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -7,8 +7,8 @@
 > moved 0.05 HBAR with the quote id `q_6eb0be075ceaee4b92d86575` in the
 > transaction memo, and receipt `poa_60a1c2220acb7ef835dcdca8` binds identity,
 > policy, request, quote, payment and result — verifying as VALID with
-> `settlement_source: MIRROR_NODE`. HCS anchoring (CP-H7) and the demo UI
-> (CP-H8) are still to come.
+> `settlement_source: MIRROR_NODE`. The demo UI (CP-H8) presents that evidence
+> and is built but **not deployed**; HCS anchoring (CP-H7) is still to come.
 > See [`docs/evidence/CP-H2-REPORT.md`](docs/evidence/CP-H2-REPORT.md).
 
 ---
@@ -62,6 +62,16 @@ npm run scan      # secret scan — fails on key material or production leakage
 npm run check     # both
 ```
 
+To look at the CP-H8 demo page — a static, read-only presentation of the evidence
+below, with no wallet, no payment path and no network call:
+
+```bash
+npm run demo:preview          # http://127.0.0.1:4408/
+```
+
+It also opens straight from disk: `apps/demo-ui/public/index.html`. Details in
+[`apps/demo-ui/README.md`](apps/demo-ui/README.md).
+
 To generate a throwaway receipt-signing key (never a production key):
 
 ```bash
@@ -101,9 +111,9 @@ packages/evidence-receipt/     Ed25519 signer, receipt builders, independent ver
 packages/hcs-anchor/           anchor interface + payload schema + topic denylist
 services/resource-server/      the governed flow, and a deterministic evidence service
 services/agent-client/         the buying agent (holds no key)
-apps/demo-ui/                  CP-H8
+apps/demo-ui/                  CP-H8 evidence page: read-only model, static page, local preview
 tools/                         secret scan, schema emit, keygen, standalone verifier
-tests/{unit,integration,e2e}/  250 offline tests
+tests/{unit,integration,e2e}/  offline tests, no network and no SDK import
 docs/                          protocol, boundaries, status, reference notes, evidence
 ```
 

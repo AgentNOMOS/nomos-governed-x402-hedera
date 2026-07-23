@@ -22,7 +22,10 @@
     "hedera:resolve": "node tools/resolve-account.ts",
     "hedera:preflight": "node tools/preflight-check.ts",
     "hedera:dryrun": "node tools/run-payment.ts",
-    "hedera:execute": "node tools/run-payment.ts --execute"
+    "hedera:execute": "node tools/run-payment.ts --execute",
+    "demo:build": "node apps/demo-ui/src/build.ts",
+    "demo:check": "node apps/demo-ui/src/build.ts --check",
+    "demo:preview": "node apps/demo-ui/serve.ts"
   },
   "dependencies": {
     "@x402/core": "2.19.0",
