@@ -1,20 +1,20 @@
 # Implementation Status
 
-**As of CP-H2 (2026-07-22) — one real Hedera testnet x402 payment settled and receipted.** This file is the honest ledger. If something is a
+**As of the public release (2026-07-23) — the payment, receipt, HCS anchor, demo and public evidence are complete.** This file is the honest ledger. If something is a
 mock, it says so here and it says so in the artifact itself.
 
 ## Headline
 
 | | |
 |---|---|
-| Real Hedera transactions executed | **2** — 1 preparatory funding, 1 x402 payment |
-| HCS messages submitted | **0** |
+| Real Hedera transactions executed | **4** — preparatory funding, x402 payment, HCS topic creation and one HCS message submission |
+| HCS messages submitted | **1** — topic `0.0.9703011`, sequence 1, consensus `1784818806.041876104` |
 | Testnet accounts created | **2** — payer `0.0.9689846`, payee `0.0.9689904` (auto-created) |
-| Keys generated | **3** local demo keys (payer, payee, receipt signer), all mode 0600 and git-ignored; **0** used to sign anything submitted |
-| Git remotes configured | **none** |
-| Commits pushed anywhere | **0** |
-| Offline tests passing | **250** |
-| Third-party dependencies | **2** (`@x402/hedera`, `@x402/core`) — real path only; the offline suite imports neither |
+| Keys generated | **3** local testnet/demo keys (payer, payee, receipt signer), all mode 0600 and git-ignored; used only for the explicitly authorized testnet flow |
+| Public repository | [`AgentNOMOS/nomos-governed-x402-hedera`](https://github.com/AgentNOMOS/nomos-governed-x402-hedera), default branch `main` |
+| Release baseline | `0ab3e89433287e27b69cfaf2a03792f523313e15` |
+| Validation | **539/539** tests passing; secret scan CLEAN across 119 files; demo evidence current |
+| Third-party dependencies | **3** (`@x402/hedera`, `@x402/core`, `@hiero-ledger/sdk`) — real Hedera/HCS paths only; the offline suite imports none |
 
 **A real payment is evidenced**: `docs/evidence/cp-h2/receipt.json` carries
 `settlement_source: "MIRROR_NODE"`, `settlement_finality: "FINAL"` and Hedera
@@ -43,8 +43,8 @@ mock warning. Mock artifacts still exist for the offline suite and still carry
 | Mirror-node verification (offline stand-in) | `.../mock-adapter.ts` | 🟡 retained for the offline suite | **MOCK** |
 | Receipt signer (Ed25519) | `packages/evidence-receipt/src/signer.ts` | ✅ complete | **real** |
 | Receipt builders + verifier | `.../receipt.ts` | ✅ complete | **real** |
-| HCS anchor interface + payload | `packages/hcs-anchor/src/interfaces.ts` | ✅ defined | interface only |
-| HCS submission | `.../mock-anchor.ts` | 🟡 sequencing simulated | **MOCK** |
+| HCS anchor interface + payload | `packages/hcs-anchor/src/interfaces.ts` | ✅ complete | **real** |
+| Mock HCS submission | `.../mock-anchor.ts` | 🟡 retained for the offline suite | **MOCK** |
 | Governed flow orchestration | `services/resource-server/src/flow.ts` | ✅ complete | **real** |
 | Evidence service | `.../evidence-service.ts` | ✅ complete | **real**, synthetic corpus |
 | Agent client | `services/agent-client/src/agent.ts` | ✅ complete | **real** |
@@ -54,15 +54,15 @@ mock warning. Mock artifacts still exist for the offline suite and still carry
 | One-shot payment runner | `tools/run-payment.ts` | ✅ complete | **real**, dry-run default + one-payment lock |
 | Demo UI | `apps/demo-ui/` | ✅ CP-H8 | **real**, local only — presents CP-H2 evidence and the confirmed CP-H7 anchor |
 | Demo anchor resolution | `apps/demo-ui/src/anchor-model.ts` | ✅ CP-H8 | **real**, 14 fail-closed checks; four distinct states |
-| HCS anchor envelope v2 | `packages/hcs-anchor/src/anchor-envelope.ts` | ✅ CP-H7 prep | **real** bytes, nothing submitted |
-| HCS anchor verifier | `.../anchor-verifier.ts` | ✅ CP-H7 prep | **real**, offline; CONFIRMED needs an observation |
-| HCS anchor guard (Grant B) | `.../anchor-guard.ts` | ✅ CP-H7D | **real**, BLOCKED — no confirmed topic, no Grant B |
+| HCS anchor envelope v2 | `packages/hcs-anchor/src/anchor-envelope.ts` | ✅ CP-H7F | **real**, submitted once and confirmed byte-exact |
+| HCS anchor verifier | `.../anchor-verifier.ts` | ✅ CP-H7F | **real**, confirmed against an independent Mirror Node observation |
+| HCS anchor guard (Grant B) | `.../anchor-guard.ts` | ✅ CP-H7F | **real**, executed once; consumed grant and duplicate guards now refuse re-execution |
 | Topic configuration (frozen) | `.../topic-config.ts` | ✅ CP-H7D | **real**, digest `sha256:42ee4d26…650f6b` |
 | Topic guard (Grant A) + read-back | `.../topic-guard.ts` | ✅ CP-H7D | **real**, exercised — read-back CONFIRMED |
 | Topic creation runner | `tools/create-anchor-topic.ts` | ✅ CP-H7E | **real**, executed once; now blocked by three duplicate guards |
-| HCS topic | `0.0.9703011` | ✅ CP-H7E | **real**, immutable configuration |
+| HCS topic | `0.0.9703011` | ✅ CP-H7E | **real**, `admin_key: null`; configuration and submit key cannot be changed without an admin key; expiry/auto-renew remain separate ledger properties |
 | HCS anchor | sequence 1 | ✅ CP-H7F | **real**, CONFIRMED byte-exact against a mirror node |
-| HCS anchor runner | `tools/anchor-receipt.ts` | 🟡 dry run only | `--execute` refuses; no SDK loaded on the dry path |
+| HCS anchor runner | `tools/anchor-receipt.ts` | ✅ CP-H7F | executed once under Grant B; re-execution refuses; dry-run still loads no SDK |
 | Standalone anchor verifier CLI | `tools/verify-anchor.ts` | ✅ CP-H7 prep | **real** |
 | Secret scanner | `tools/secret-scan.ts` | ✅ complete | **real** |
 | Standalone verifier CLI | `tools/verify-receipt.ts` | ✅ complete | **real** |
@@ -87,26 +87,18 @@ the algorithm, canonicalization profile, receipt schema and source payment that
 a topic reader needs in order to verify without holding the receipt. v1 is left
 untouched because CP-H1 and CP-H2 evidence asserts its shape.
 
-## Test inventory
+## Validation baseline
 
-```
-tests/unit/canonical.test.ts     22   determinism, manipulation, money safety, domains
-tests/unit/schemas.test.ts       24   registry, validator, network/asset pinning, receipt bindings
-tests/unit/policy.test.ts        32   allowlists, caps, authority, REVIEW, symmetric binding, replay
-tests/unit/receipt.test.ts       44   key boundary, signatures, 13 mutation cases, impossible states
-tests/unit/adapter.test.ts       28   quotes, challenge, expiry, HashScan slugs, settlement mismatches
-tests/unit/anchor.test.ts        16   topic denylist, payload minimisation, degrade-not-throw
-tests/unit/real-adapter.test.ts  26   requirement mapping, facilitator discovery, mirror maths,
-                                      propagation retry, six settlement negatives, dry-run stop
-tests/unit/alias-payee.test.ts   16   auto-account creation: where an alias is allowed and where not
-tests/unit/child-records.test.ts  9   REGRESSION: child records must not be read as the payment
-tests/unit/secret-scan.test.ts    5   no committed secrets, waivers stay out of runtime code
-tests/integration/flow.test.ts   22   the delivery gate, replay, idempotency, caps, anchor independence
-tests/e2e/mock-flow.test.ts       6   full chain, mock labelling, denial path, determinism
-                                 ───
-                                 250
-```
+The public release baseline `0ab3e89` was verified with:
 
+- **539/539 tests passing** across unit, integration and end-to-end suites
+- secret scan **CLEAN** across 119 tracked files
+- committed demo evidence confirmed current
+- fresh-clone verification completed before publication
+
+The earlier CP-H2 test inventory contained 250 tests. Historical checkpoint
+reports retain that number because they describe the repository at that time;
+the current public-release total is 539.
 ## CP-H2 complete
 
 One real x402 payment settled on Hedera testnet and is bound by a signed
@@ -133,9 +125,10 @@ from auto-account creation and the code read `transactions[0]`. Fixed in
 `selectUserTransaction`, regression-tested in `tests/unit/child-records.test.ts`.
 Full account in `docs/evidence/CP-H2-REPORT.md` §4.
 
-**Next:** the bounty video and the public repository. The public push is still
-blocked on the git-identity decision and on `tools/secret-scan.allow.json` being
-untracked (see `docs/evidence/CP-H7-PREPARATION.md` §10).
+**Submission status:** the public repository and the [3:36 video demo](https://youtu.be/OOKwp3XrVsU)
+are live, and the Hedera x402 bounty submission was sent on 2026-07-23. Historical
+checkpoint reports remain unchanged and must be read as snapshots of their stated
+checkpoint.
 
 **Anchored, and the receipt is unchanged.** The digest of
 `poa_60a1c2220acb7ef835dcdca8` reached consensus on topic `0.0.9703011` at
