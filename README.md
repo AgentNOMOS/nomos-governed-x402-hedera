@@ -71,8 +71,9 @@ Three things, in descending order of how much they matter:
 Requires **Node ≥ 22.6**. The offline core still needs nothing installed — it
 runs on Node's standard library with native TypeScript type-stripping, so
 `npm test` works on a fresh clone with no build step and no network. The real
-Hedera path adds two packages (`@x402/hedera`, `@x402/core`); no test imports
-them, which is why the suite keeps passing with `node_modules` deleted.
+Hedera/HCS path adds three direct packages (`@x402/hedera`, `@x402/core`,
+`@hiero-ledger/sdk`); no test imports them, which is why the suite keeps passing
+with `node_modules` deleted.
 
 ```bash
 git clone https://github.com/AgentNOMOS/nomos-governed-x402-hedera.git && cd nomos-governed-x402-hedera
