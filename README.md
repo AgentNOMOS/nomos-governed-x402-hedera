@@ -26,6 +26,13 @@
 
 ---
 
+## Video demo
+
+[Watch the 3:36 live testnet demo](https://youtu.be/OOKwp3XrVsU). It shows the
+HTTP 402 challenge, the real 0.05 HBAR Hedera testnet settlement, the NOMOS
+policy gate, independent receipt verification and the confirmed HCS digest
+anchor.
+
 ## The idea in one paragraph
 
 x402 lets an agent pay for an HTTP request. It proves that **money moved**. It
@@ -68,7 +75,7 @@ Hedera path adds two packages (`@x402/hedera`, `@x402/core`); no test imports
 them, which is why the suite keeps passing with `node_modules` deleted.
 
 ```bash
-git clone <this repo> && cd nomos-governed-x402-hedera
+git clone https://github.com/AgentNOMOS/nomos-governed-x402-hedera.git && cd nomos-governed-x402-hedera
 
 npm test          # unit + integration + e2e, all offline
 npm run scan      # secret scan — fails on key material or production leakage
