@@ -1,6 +1,6 @@
 {
   "mode": "DRY_RUN",
-  "generated_at": "2026-07-23T14:31:00Z",
+  "generated_at": "2026-07-23T14:42:33Z",
   "topic_config": {
     "schema": "nomos.gx402.hcs_topic_config.v1",
     "network": "hedera:testnet",
@@ -21,12 +21,8 @@
   "memo_bytes": 76,
   "submit_key_verified_against_payer": true,
   "guard": {
-    "allowed": false,
-    "blockers": [
-      "ANCHOR_DISABLED:NOMOS_GX402_ANCHOR_ENABLED is not true",
-      "LEDGER_STATE_UNKNOWN:could not list existing topic creations — refusing while unclear",
-      "NO_GRANT_A:.local/HCS_TOPIC_CREATE_AUTHORIZED is absent or not a valid grant document"
-    ],
+    "allowed": true,
+    "blockers": [],
     "notes": [
       "submit key verified against the payer's own key — the topic will be writable by us"
     ]

@@ -57,8 +57,9 @@ mock warning. Mock artifacts still exist for the offline suite and still carry
 | HCS anchor verifier | `.../anchor-verifier.ts` | ✅ CP-H7 prep | **real**, offline; CONFIRMED needs an observation |
 | HCS anchor guard (Grant B) | `.../anchor-guard.ts` | ✅ CP-H7D | **real**, BLOCKED — no confirmed topic, no Grant B |
 | Topic configuration (frozen) | `.../topic-config.ts` | ✅ CP-H7D | **real**, digest `sha256:42ee4d26…650f6b` |
-| Topic guard (Grant A) + read-back | `.../topic-guard.ts` | ✅ CP-H7D | **real**, BLOCKED — no Grant A |
-| Topic creation runner | `tools/create-anchor-topic.ts` | 🟡 dry run only | builds no transaction; no SDK on the dry path |
+| Topic guard (Grant A) + read-back | `.../topic-guard.ts` | ✅ CP-H7D | **real**, exercised — read-back CONFIRMED |
+| Topic creation runner | `tools/create-anchor-topic.ts` | ✅ CP-H7E | **real**, executed once; now blocked by three duplicate guards |
+| HCS topic | `0.0.9703011` | ✅ CP-H7E | **real**, empty — no message submitted |
 | HCS anchor runner | `tools/anchor-receipt.ts` | 🟡 dry run only | `--execute` refuses; no SDK loaded on the dry path |
 | Standalone anchor verifier CLI | `tools/verify-anchor.ts` | ✅ CP-H7 prep | **real** |
 | Secret scanner | `tools/secret-scan.ts` | ✅ complete | **real** |
@@ -130,11 +131,10 @@ from auto-account creation and the code read `transactions[0]`. Fixed in
 `selectUserTransaction`, regression-tested in `tests/unit/child-records.test.ts`.
 Full account in `docs/evidence/CP-H2-REPORT.md` §4.
 
-**Next:** CP-H7 execution. The topic configuration is locked (CP-H7D) and awaits
-**Grant A**; Grant B cannot be written until a topic exists and has been read back
-field by field. See `docs/CP-H7-TRANSACTION-PLAN.md`. Then the bounty video and
-the public repository.
+**Next:** the anchor message, which needs **Grant B** (`docs/evidence/CP-H7E-TOPIC-CREATED.md`).
+Then the bounty video and the public repository.
 
 **Not anchored.** `poa_60a1c2220acb7ef835dcdca8` carries `anchor: null` and is
-fully valid without one. No HCS topic exists for this project; the payer account
-has exactly two transactions, both CRYPTOTRANSFER.
+fully valid without one. Topic `0.0.9703011` exists as of 2026-07-23 and is
+**empty**: the payer has three transactions — two CRYPTOTRANSFER and one
+CONSENSUSCREATETOPIC — and zero CONSENSUSSUBMITMESSAGE.

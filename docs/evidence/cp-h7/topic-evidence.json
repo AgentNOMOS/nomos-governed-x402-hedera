@@ -1,0 +1,118 @@
+{
+  "schema": "nomos.gx402.hcs_topic_evidence.v1",
+  "status": "CONFIRMED",
+  "network": "hedera:testnet",
+  "topic_id": "0.0.9703011",
+  "transaction_id": "0.0.9689846@1784817764.643511348",
+  "create_status": "SUCCESS",
+  "topic_config": {
+    "schema": "nomos.gx402.hcs_topic_config.v1",
+    "network": "hedera:testnet",
+    "payer_account_id": "0.0.9689846",
+    "memo": "NOMOS CP-H7 PoA anchor v2 | TESTNET_DEMO_ONLY | poa_60a1c2220acb7ef835dcdca8",
+    "memo_bytes": 76,
+    "admin_key": null,
+    "submit_key": {
+      "type": "ECDSA_SECP256K1",
+      "public_key": "025da46e31ecfa0ded857ec843508fee25efcf73780f5725c1da8ba49be8ce4c17"
+    },
+    "auto_renew_account_id": "0.0.9689846",
+    "auto_renew_period_seconds": 8000001,
+    "max_transaction_fee_tinybar": "50000000"
+  },
+  "topic_config_digest": "sha256:42ee4d26dd74a13d1f58c9d72978580db16ecc55a8da6f1bd530aed85e650f6b",
+  "readback": {
+    "ok": true,
+    "reasons": [],
+    "checked": [
+      {
+        "field": "topic_id",
+        "expected": "0.0.9703011",
+        "observed": "0.0.9703011",
+        "ok": true
+      },
+      {
+        "field": "memo",
+        "expected": "NOMOS CP-H7 PoA anchor v2 | TESTNET_DEMO_ONLY | poa_60a1c2220acb7ef835dcdca8",
+        "observed": "NOMOS CP-H7 PoA anchor v2 | TESTNET_DEMO_ONLY | poa_60a1c2220acb7ef835dcdca8",
+        "ok": true
+      },
+      {
+        "field": "admin_key",
+        "expected": "<absent>",
+        "observed": "<absent>",
+        "ok": true
+      },
+      {
+        "field": "submit_key",
+        "expected": "025da46e31ecfa0ded857ec843508fee25efcf73780f5725c1da8ba49be8ce4c17",
+        "observed": "025da46e31ecfa0ded857ec843508fee25efcf73780f5725c1da8ba49be8ce4c17",
+        "ok": true
+      },
+      {
+        "field": "auto_renew_account",
+        "expected": "0.0.9689846",
+        "observed": "0.0.9689846",
+        "ok": true
+      },
+      {
+        "field": "auto_renew_period",
+        "expected": "8000001",
+        "observed": "8000001",
+        "ok": true
+      }
+    ]
+  },
+  "observed": {
+    "admin_key": null,
+    "auto_renew_account": "0.0.9689846",
+    "auto_renew_period": 8000001,
+    "created_timestamp": "1784817768.283020104",
+    "custom_fees": {
+      "created_timestamp": "1784817768.283020104",
+      "fixed_fees": []
+    },
+    "deleted": false,
+    "fee_exempt_key_list": [],
+    "fee_schedule_key": null,
+    "memo": "NOMOS CP-H7 PoA anchor v2 | TESTNET_DEMO_ONLY | poa_60a1c2220acb7ef835dcdca8",
+    "submit_key": {
+      "_type": "ECDSA_SECP256K1",
+      "key": "025da46e31ecfa0ded857ec843508fee25efcf73780f5725c1da8ba49be8ce4c17"
+    },
+    "timestamp": {
+      "from": "1784817768.283020104",
+      "to": null
+    },
+    "topic_id": "0.0.9703011"
+  },
+  "created_at": "2026-07-23T14:42:55Z",
+  "hashscan_url": "https://hashscan.io/testnet/topic/0.0.9703011",
+  "mirror_url": "https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.9703011",
+  "consensus_timestamp": "1784817768.283020104",
+  "charged_tx_fee_tinybar": "27633341",
+  "max_transaction_fee_tinybar": "50000000",
+  "independent_verification": {
+    "performed_at": "2026-07-23T14:43:53Z",
+    "method": "direct GET /topics/0.0.9703011 and GET /transactions/0.0.9689846-1784817764-643511348, outside the create tool",
+    "transaction_records": 1,
+    "transaction_result": "SUCCESS",
+    "transaction_type": "CONSENSUSCREATETOPIC",
+    "entity_id": "0.0.9703011",
+    "checks_passed": [
+      "topic_id",
+      "memo",
+      "memo_bytes_76",
+      "admin_key_absent",
+      "submit_key",
+      "auto_renew_account",
+      "auto_renew_period",
+      "deleted_false",
+      "create_result_success"
+    ],
+    "result": "ALL_PASS"
+  },
+  "anchored": false,
+  "anchor_note": "A topic exists. NO message has been submitted. Grant B is a separate, unissued authorization.",
+  "permanence_note": "Without an admin key the configuration and submit key cannot be changed and the topic cannot be removed by a regular TopicDeleteTransaction. This is NOT a guarantee of perpetual existence: expiration and auto-renew remain independent ledger properties, and mirror-node history retention is a third-party policy, not a property of the topic."
+}
