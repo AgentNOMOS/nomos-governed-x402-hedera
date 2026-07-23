@@ -63,7 +63,7 @@ mock warning. Mock artifacts still exist for the offline suite and still carry
 | HCS topic | `0.0.9703011` | ✅ CP-H7E | **real**, `admin_key: null`; configuration and submit key cannot be changed without an admin key; expiry/auto-renew remain separate ledger properties |
 | HCS anchor | sequence 1 | ✅ CP-H7F | **real**, CONFIRMED byte-exact against a mirror node |
 | HCS anchor runner | `tools/anchor-receipt.ts` | ✅ CP-H7F | executed once under Grant B; re-execution refuses; dry-run still loads no SDK |
-| Standalone anchor verifier CLI | `tools/verify-anchor.ts` | ✅ CP-H7 prep | **real** |
+| Standalone anchor verifier CLI | `tools/verify-anchor.ts` | ✅ CP-H7F | **real**, exercised against the confirmed message |
 | Secret scanner | `tools/secret-scan.ts` | ✅ complete | **real** |
 | Standalone verifier CLI | `tools/verify-receipt.ts` | ✅ complete | **real** |
 
