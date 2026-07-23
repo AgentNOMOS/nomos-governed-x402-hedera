@@ -29,6 +29,7 @@
  *   anchor as proven in between.
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -43,6 +44,7 @@ import {
   parseAnchorGrant,
   verifyAnchorEvidence,
   ANCHOR_ENVELOPE_BYTE_BUDGET,
+  MESSAGE_SUBMIT_MAX_FEE_TINYBAR,
   AnchorBindingError,
   type AnchorEnvelope,
   type AnchorGuardState,
@@ -55,6 +57,7 @@ import { loadConfig, readEnvFile } from "./load-config.ts";
 const DEFAULT_RECEIPT = "docs/evidence/cp-h2/receipt.json";
 const GRANT_FILE = resolve(".local/HCS_ANCHOR_AUTHORIZED");
 const EXECUTED_MARKER = resolve(".local/HCS_ANCHOR_EXECUTED");
+const TOPIC_EVIDENCE = resolve("docs/evidence/cp-h7/topic-evidence.json");
 const EVIDENCE_FILE = resolve("docs/evidence/cp-h7/anchor-evidence.json");
 const DRYRUN_FILE = resolve("docs/evidence/cp-h7/anchor-dry-run.json");
 
@@ -142,9 +145,16 @@ async function main(): Promise<number> {
   }
 
   // ── build the envelope; every field comes from the receipt ────────────────
+  // When a Grant B exists it pins `created_at`, and the envelope is rebuilt at
+  // that instant rather than at "now". The grant approves a digest of exact
+  // bytes, and `created_at` is the only field that would otherwise drift
+  // between approval and submission — pinning it is what makes "these bytes and
+  // no others" a statement a guard can check.
+  const grantB = parseAnchorGrant(readIfPresent(GRANT_FILE));
+  const envelopeAtMs = grantB ? Date.parse(grantB.envelope_created_at) : Date.now();
   let envelope: AnchorEnvelope;
   try {
-    envelope = buildAnchorEnvelope(receipt, Date.now());
+    envelope = buildAnchorEnvelope(receipt, envelopeAtMs);
     assertEnvelopeBinding(envelope, receipt);
   } catch (err) {
     const code = err instanceof AnchorBindingError ? err.code : "UNKNOWN";
@@ -170,8 +180,21 @@ async function main(): Promise<number> {
     ? findDuplicateAnchor(topicMessages, envelope.receipt_id, envelope.record_digest)
     : null;
 
+  // Grant B may only act on a topic that was created under Grant A and then
+  // read back field by field. That evidence file is the proof.
+  const topicEvidenceRaw = readIfPresent(TOPIC_EVIDENCE);
+  let topicReadbackConfirmed = false;
+  if (topicEvidenceRaw) {
+    try {
+      const te = JSON.parse(topicEvidenceRaw) as { status?: string; topic_id?: string };
+      topicReadbackConfirmed = te.status === "CONFIRMED" && te.topic_id === configuredTopicId && !!configuredTopicId;
+    } catch {
+      topicReadbackConfirmed = false;
+    }
+  }
+
   const state: AnchorGuardState = {
-    grant: parseAnchorGrant(readIfPresent(GRANT_FILE)),
+    grant: grantB,
     executedMarker: readIfPresent(EXECUTED_MARKER),
     anchorEnabled,
     configuredTopicId,
@@ -179,12 +202,14 @@ async function main(): Promise<number> {
     network: cfg.network,
     receiptId: envelope.receipt_id,
     recordDigest: envelope.record_digest,
-    // A run with no configured topic would have to create one first, which is
-    // a second transaction. Counting it here is what makes the grant's
-    // max_transactions mean something.
-    plannedTransactions: configuredTopicId ? 1 : 2,
+    anchorKey: key,
+    envelopeSha256: `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
+    envelopeBytes: bytes.length,
+    // Exactly one. Creating a topic is Grant A's business and a different tool.
+    plannedTransactions: 1,
     duplicateOnTopic: duplicate !== null,
     topicScanned: topicMessages !== null,
+    topicReadbackConfirmed,
     nowMs: Date.now(),
   };
 
@@ -197,6 +222,8 @@ async function main(): Promise<number> {
   console.log(`grant document   : ${state.grant ? `present (topic ${state.grant.topic_id}, expires ${state.grant.expires_at})` : "absent or invalid"}`);
   console.log(`executed marker  : ${state.executedMarker ? "present — budget spent" : "absent"}`);
   console.log(`payer key file   : ${state.payerKeyPresent ? "present (contents never read here)" : "absent"}`);
+  console.log(`topic read-back  : ${state.topicReadbackConfirmed ? "CONFIRMED (Grant A completed)" : "absent — Grant A not completed"}`);
+  console.log(`envelope sha256  : ${state.envelopeSha256}`);
   console.log(`topic scanned    : ${state.topicScanned ? `yes (${topicMessages?.length ?? 0} messages)` : "no"}`);
   console.log(`duplicate anchor : ${state.duplicateOnTopic ? "YES — already anchored" : "none found"}`);
   console.log(`planned txs      : ${state.plannedTransactions}`);
@@ -221,13 +248,14 @@ async function main(): Promise<number> {
       would_submit: {
         network: NETWORK,
         topic_id: state.configuredTopicId || null,
-        transactions: state.plannedTransactions,
-        transaction_sequence: state.configuredTopicId
-          ? ["TopicMessageSubmitTransaction"]
-          : ["TopicCreateTransaction", "TopicMessageSubmitTransaction"],
+        transactions: 1,
+        transaction_sequence: ["TopicMessageSubmitTransaction"],
         message_bytes: bytes.length,
-        submitted: false,
+        message_sha256: state.envelopeSha256,
+        max_transaction_fee_tinybar: MESSAGE_SUBMIT_MAX_FEE_TINYBAR,
+        built: false,
         signed: false,
+        submitted: false,
       },
       note:
         "Nothing was signed, submitted or persisted to the ledger. The Hedera SDK was " +
@@ -257,9 +285,13 @@ async function main(): Promise<number> {
 
   let transactionId: string | null = null;
   try {
+    const { Hbar, HbarUnit } = await import("@hiero-ledger/sdk");
     const tx = await new TopicMessageSubmitTransaction()
       .setTopicId(state.configuredTopicId)
       .setMessage(bytes)
+      // Explicit, from the approved ceiling. An SDK default here would be a
+      // spending limit nobody chose.
+      .setMaxTransactionFee(Hbar.from(MESSAGE_SUBMIT_MAX_FEE_TINYBAR, HbarUnit.Tinybar))
       .execute(client);
     transactionId = tx.transactionId?.toString() ?? null;
     if (transactionId) markAnchorSubmitted(transactionId, key);

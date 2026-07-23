@@ -22,19 +22,45 @@
  */
 import { NETWORK } from "../../shared-schemas/src/index.ts";
 import { FORBIDDEN_TOPIC_IDS } from "./interfaces.ts";
+import { MESSAGE_SUBMIT_MAX_FEE_TINYBAR } from "./topic-config.ts";
+import { GRANT_MAX_WINDOW_SECONDS } from "./topic-guard.ts";
 
-/** What an operator signs off on. Parsed from `.local/HCS_ANCHOR_AUTHORIZED`. */
+/**
+ * GRANT B — what an operator signs off on to publish one message.
+ * Parsed from `.local/HCS_ANCHOR_AUTHORIZED`.
+ *
+ * It can only be written after Grant A has been executed and the created topic
+ * read back field by field, because it names a real topic id and the exact
+ * bytes to be published. `topic_id: "CREATE"` no longer exists: creating a topic
+ * is Grant A's business, and one document that could do either was a document
+ * that could authorize a submit to a topic nobody had inspected.
+ */
 export interface AnchorGrant {
   /** Must equal the string below, so an unrelated file cannot be read as a grant. */
-  grant: "NOMOS_GX402_CP_H7_ANCHOR_GRANT_V1";
-  /** The one topic this grant covers. `"CREATE"` authorizes creating a new topic first. */
-  topic_id: string | "CREATE";
+  grant: "NOMOS_GX402_CP_H7_ANCHOR_SUBMIT_GRANT_V2";
+  /** The one real topic this grant covers. Never a placeholder. */
+  topic_id: string;
   /** The one receipt this grant covers. */
   receipt_id: string;
   /** Digest of that receipt's record. Belt and braces against a swapped receipt file. */
   record_digest: string;
-  /** How many chain transactions the grant covers in total (topic create counts as one). */
-  max_transactions: number;
+  /** Idempotency key over (network, receipt_id, record_digest). */
+  anchor_key: string;
+  /**
+   * `created_at` of the approved envelope.
+   *
+   * Pinned rather than taken from the clock at submit time, because the grant
+   * names a digest of the exact bytes and `created_at` is the one field that
+   * would otherwise move between approval and submission. Pinning it is what
+   * makes "these bytes and no others" a checkable statement.
+   */
+  envelope_created_at: string;
+  /** SHA-256 over the exact canonical envelope bytes. */
+  envelope_sha256: string;
+  /** Byte length of those bytes. A second, cheaper check on the same object. */
+  envelope_bytes: number;
+  /** Ceiling for the submit transaction, in tinybar. */
+  max_transaction_fee_tinybar: string;
   /** UTC expiry. A grant without one would be a permanent standing authorization. */
   expires_at: string;
   network: string;
@@ -54,12 +80,23 @@ export interface AnchorGuardState {
   network: string;
   receiptId: string;
   recordDigest: string;
-  /** Transactions this run intends to submit. */
+  /** Idempotency key the tool derived for this receipt. */
+  anchorKey: string;
+  /** SHA-256 of the canonical envelope bytes this run would submit. */
+  envelopeSha256: string;
+  /** Length of those bytes. */
+  envelopeBytes: number;
+  /** Transactions this run intends to submit. Always 1 — creating a topic is Grant A. */
   plannedTransactions: number;
   /** A duplicate found on the topic itself, when the topic was scanned. */
   duplicateOnTopic: boolean;
   /** Whether the topic was scanned at all. Not scanning is itself a blocker. */
   topicScanned: boolean;
+  /**
+   * Whether a confirmed topic read-back exists on disk. Grant B may only be
+   * acted on for a topic that was verified field by field after creation.
+   */
+  topicReadbackConfirmed: boolean;
   nowMs: number;
 }
 
@@ -71,10 +108,10 @@ export interface AnchorGuardVerdict {
   notes: string[];
 }
 
-export const GRANT_MAGIC = "NOMOS_GX402_CP_H7_ANCHOR_GRANT_V1";
+export const GRANT_MAGIC = "NOMOS_GX402_CP_H7_ANCHOR_SUBMIT_GRANT_V2";
 
 /**
- * Parse a grant document. Returns null rather than throwing, because "no valid
+ * Parse a Grant B document. Returns null rather than throwing, because "no valid
  * grant" and "no grant at all" must lead to the same refusal — a caller that
  * distinguishes them invites a catch block that treats one as the other.
  */
@@ -88,10 +125,15 @@ export function parseAnchorGrant(raw: string | null): AnchorGrant | null {
   }
   const g = parsed as Partial<AnchorGrant>;
   if (g?.grant !== GRANT_MAGIC) return null;
-  if (typeof g.topic_id !== "string" || g.topic_id.length === 0) return null;
+  // A real topic id only. "CREATE" was removed with Grant A's introduction.
+  if (typeof g.topic_id !== "string" || !/^\d+\.\d+\.\d+$/.test(g.topic_id)) return null;
   if (typeof g.receipt_id !== "string" || !/^poa_[0-9a-f]{24}$/.test(g.receipt_id)) return null;
   if (typeof g.record_digest !== "string" || !/^sha256:[0-9a-f]{64}$/.test(g.record_digest)) return null;
-  if (typeof g.max_transactions !== "number" || !Number.isInteger(g.max_transactions) || g.max_transactions < 1) return null;
+  if (typeof g.anchor_key !== "string" || !/^anc_[0-9a-f]{24}$/.test(g.anchor_key)) return null;
+  if (typeof g.envelope_created_at !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(g.envelope_created_at)) return null;
+  if (typeof g.envelope_sha256 !== "string" || !/^sha256:[0-9a-f]{64}$/.test(g.envelope_sha256)) return null;
+  if (typeof g.envelope_bytes !== "number" || !Number.isInteger(g.envelope_bytes) || g.envelope_bytes < 1) return null;
+  if (typeof g.max_transaction_fee_tinybar !== "string" || !/^(0|[1-9][0-9]*)$/.test(g.max_transaction_fee_tinybar)) return null;
   if (typeof g.expires_at !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(g.expires_at)) return null;
   if (typeof g.network !== "string") return null;
   return g as AnchorGrant;
@@ -117,34 +159,58 @@ export function evaluateAnchorGuard(state: AnchorGuardState): AnchorGuardVerdict
     blockers.push("ALREADY_EXECUTED:.local/HCS_ANCHOR_EXECUTED exists — this receipt's anchor budget is spent");
   }
 
+  // Grant B authorizes publishing to a topic that already exists and was read
+  // back. Without that confirmation there is nothing a submit could safely go to.
+  if (!state.topicReadbackConfirmed) {
+    blockers.push("NO_CONFIRMED_TOPIC:no verified topic read-back — run Grant A first");
+  }
+
   const grant = state.grant;
   if (!grant) {
-    blockers.push("NO_GRANT:.local/HCS_ANCHOR_AUTHORIZED is absent or not a valid grant document");
+    blockers.push("NO_GRANT_B:.local/HCS_ANCHOR_AUTHORIZED is absent or not a valid grant document");
   } else {
     if (grant.network !== state.network) blockers.push(`GRANT_NETWORK_MISMATCH:${grant.network}`);
     if (grant.receipt_id !== state.receiptId) blockers.push(`GRANT_RECEIPT_MISMATCH:${grant.receipt_id}`);
     if (grant.record_digest !== state.recordDigest) blockers.push("GRANT_DIGEST_MISMATCH");
-    if (grant.max_transactions < state.plannedTransactions) {
-      blockers.push(`GRANT_TX_BUDGET_EXCEEDED:covers ${grant.max_transactions}, run plans ${state.plannedTransactions}`);
+    if (grant.anchor_key !== state.anchorKey) blockers.push(`GRANT_ANCHOR_KEY_MISMATCH:${grant.anchor_key}`);
+
+    // The grant approves specific bytes, not "an anchor for this receipt".
+    if (grant.envelope_sha256 !== state.envelopeSha256) {
+      blockers.push("GRANT_ENVELOPE_DIGEST_MISMATCH:the bytes this run would submit are not the approved bytes");
     }
+    if (grant.envelope_bytes !== state.envelopeBytes) {
+      blockers.push(`GRANT_ENVELOPE_BYTE_COUNT_MISMATCH:grant ${grant.envelope_bytes}, run ${state.envelopeBytes}`);
+    }
+
+    try {
+      if (BigInt(grant.max_transaction_fee_tinybar) > BigInt(MESSAGE_SUBMIT_MAX_FEE_TINYBAR)) {
+        blockers.push(
+          `GRANT_FEE_CAP_EXCEEDED:grant allows ${grant.max_transaction_fee_tinybar}, ceiling is ${MESSAGE_SUBMIT_MAX_FEE_TINYBAR}`,
+        );
+      }
+    } catch {
+      blockers.push("GRANT_FEE_CAP_MALFORMED");
+    }
+
     const expiry = Date.parse(grant.expires_at);
     if (!Number.isFinite(expiry)) blockers.push("GRANT_EXPIRY_UNPARSABLE");
     else if (expiry <= state.nowMs) blockers.push(`GRANT_EXPIRED:${grant.expires_at}`);
+    else if (expiry - state.nowMs > GRANT_MAX_WINDOW_SECONDS * 1000) {
+      blockers.push(
+        `GRANT_WINDOW_TOO_LONG:${Math.round((expiry - state.nowMs) / 1000)}s remaining, maximum is ${GRANT_MAX_WINDOW_SECONDS}s`,
+      );
+    }
 
     // The grant names the topic. Configuration must agree, or the operator
     // approved one thing and the machine is about to do another.
-    if (grant.topic_id === "CREATE") {
-      if (state.configuredTopicId) {
-        blockers.push(`GRANT_SAYS_CREATE_BUT_TOPIC_CONFIGURED:${state.configuredTopicId}`);
-      } else {
-        notes.push("grant authorizes creating a fresh topic");
-      }
-    } else {
-      if (!state.configuredTopicId) blockers.push("TOPIC_NOT_CONFIGURED:NOMOS_GX402_HCS_TOPIC_ID is empty");
-      else if (state.configuredTopicId !== grant.topic_id) {
-        blockers.push(`GRANT_TOPIC_MISMATCH:grant ${grant.topic_id}, config ${state.configuredTopicId}`);
-      }
+    if (!state.configuredTopicId) blockers.push("TOPIC_NOT_CONFIGURED:NOMOS_GX402_HCS_TOPIC_ID is empty");
+    else if (state.configuredTopicId !== grant.topic_id) {
+      blockers.push(`GRANT_TOPIC_MISMATCH:grant ${grant.topic_id}, config ${state.configuredTopicId}`);
     }
+  }
+
+  if (state.plannedTransactions !== 1) {
+    blockers.push(`UNEXPECTED_TX_COUNT:${state.plannedTransactions} — Grant B covers exactly one submit`);
   }
 
   const topic = state.configuredTopicId;

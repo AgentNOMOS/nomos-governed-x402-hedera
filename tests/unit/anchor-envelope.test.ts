@@ -20,6 +20,7 @@ import {
   AnchorBindingError,
   FORBIDDEN_TOPIC_IDS,
   GRANT_MAGIC,
+  MESSAGE_SUBMIT_MAX_FEE_TINYBAR,
   anchorEnvelopeBytes,
   anchorEnvelopeDigest,
   anchorKey,
@@ -408,9 +409,15 @@ describe("wrong topic", () => {
     assert.ok(v.blockers.some((b) => b.startsWith("GRANT_TOPIC_MISMATCH")));
   });
 
-  test("a CREATE grant is contradicted by an already-configured topic", () => {
-    const v = evaluateAnchorGuard(guardState({ configuredTopicId: DEMO_TOPIC, grant: grant({ topic_id: "CREATE" }) }));
-    assert.ok(v.blockers.some((b) => b.startsWith("GRANT_SAYS_CREATE_BUT_TOPIC_CONFIGURED")));
+  test("Grant B cannot authorize creating a topic — \"CREATE\" is not a topic id", () => {
+    // Grant A owns topic creation. A submit grant that could also create one
+    // would be authorizing a write to a topic nobody had inspected.
+    assert.equal(parseAnchorGrant(JSON.stringify(grant({ topic_id: "CREATE" }))), null);
+  });
+
+  test("Grant B is refused while no confirmed topic read-back exists", () => {
+    const v = evaluateAnchorGuard(guardState({ topicReadbackConfirmed: false }));
+    assert.ok(v.blockers.some((b) => b.startsWith("NO_CONFIRMED_TOPIC")));
   });
 
   test("an unscanned topic blocks the run — idempotency must not depend on luck", () => {
@@ -478,9 +485,24 @@ describe("missing credentials", () => {
     assert.ok(v.blockers.some((b) => b.startsWith("GRANT_RECEIPT_MISMATCH")));
   });
 
-  test("a grant covering one transaction does not cover two", () => {
-    const v = evaluateAnchorGuard(guardState({ grant: grant({ max_transactions: 1 }), plannedTransactions: 2 }));
-    assert.ok(v.blockers.some((b) => b.startsWith("GRANT_TX_BUDGET_EXCEEDED")));
+  test("a grant approving other bytes does not authorize these bytes", () => {
+    const v = evaluateAnchorGuard(guardState({ grant: grant({ envelope_sha256: `sha256:${"e".repeat(64)}` }) }));
+    assert.ok(v.blockers.some((b) => b.startsWith("GRANT_ENVELOPE_DIGEST_MISMATCH")));
+  });
+
+  test("a grant with a fee cap above the ceiling is refused", () => {
+    const v = evaluateAnchorGuard(guardState({ grant: grant({ max_transaction_fee_tinybar: "999999999" }) }));
+    assert.ok(v.blockers.some((b) => b.startsWith("GRANT_FEE_CAP_EXCEEDED")));
+  });
+
+  test("a grant window longer than 30 minutes is refused", () => {
+    const v = evaluateAnchorGuard(guardState({ grant: grant({ expires_at: "2026-07-24T00:00:00Z" }) }));
+    assert.ok(v.blockers.some((b) => b.startsWith("GRANT_WINDOW_TOO_LONG")));
+  });
+
+  test("a grant naming another anchor key is refused", () => {
+    const v = evaluateAnchorGuard(guardState({ grant: grant({ anchor_key: `anc_${"0".repeat(24)}` }) }));
+    assert.ok(v.blockers.some((b) => b.startsWith("GRANT_ANCHOR_KEY_MISMATCH")));
   });
 });
 
@@ -531,13 +553,20 @@ describe("dry run", () => {
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 function grant(over: Record<string, unknown> = {}) {
+  const e = envelope();
+  const b = anchorEnvelopeBytes(e);
   return {
     grant: GRANT_MAGIC,
     topic_id: DEMO_TOPIC,
     receipt_id: receipt.receipt_id,
     record_digest: receipt.record_digest,
-    max_transactions: 2,
-    expires_at: "2026-08-01T00:00:00Z",
+    anchor_key: anchorKey(NETWORK, e.receipt_id, e.record_digest),
+    envelope_created_at: e.created_at,
+    envelope_sha256: `sha256:${createHash("sha256").update(b).digest("hex")}`,
+    envelope_bytes: b.length,
+    max_transaction_fee_tinybar: MESSAGE_SUBMIT_MAX_FEE_TINYBAR,
+    // Inside the 30-minute window measured from NOW.
+    expires_at: "2026-07-23T14:20:00Z",
     network: NETWORK,
     ...over,
   } as never;
@@ -554,9 +583,13 @@ function guardState(over: Partial<AnchorGuardState>): AnchorGuardState {
     network: NETWORK,
     receiptId: receipt.receipt_id,
     recordDigest: receipt.record_digest,
+    anchorKey: anchorKey(NETWORK, receipt.receipt_id, receipt.record_digest),
+    envelopeSha256: `sha256:${createHash("sha256").update(anchorEnvelopeBytes(envelope())).digest("hex")}`,
+    envelopeBytes: anchorEnvelopeBytes(envelope()).length,
     plannedTransactions: 1,
     duplicateOnTopic: false,
     topicScanned: true,
+    topicReadbackConfirmed: true,
     nowMs: NOW,
     ...over,
   };

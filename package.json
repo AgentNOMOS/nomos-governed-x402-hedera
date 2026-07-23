@@ -2,7 +2,7 @@
   "name": "nomos-governed-x402-hedera",
   "version": "0.1.0-cp-h1",
   "private": true,
-  "description": "NOMOS Governed x402 on Hedera \u2014 From Proof of Payment to Proof of Action",
+  "description": "NOMOS Governed x402 on Hedera — From Proof of Payment to Proof of Action",
   "type": "module",
   "license": "Apache-2.0",
   "engines": {
@@ -26,6 +26,9 @@
     "anchor:dryrun": "node tools/anchor-receipt.ts",
     "anchor:execute": "node tools/anchor-receipt.ts --execute",
     "anchor:verify": "node tools/verify-anchor.ts",
+    "topic:dryrun": "node tools/create-anchor-topic.ts",
+    "topic:execute": "node tools/create-anchor-topic.ts --execute",
+    "topic:grant-b": "node tools/create-anchor-topic.ts --emit-grant-b",
     "demo:build": "node apps/demo-ui/src/build.ts",
     "demo:check": "node apps/demo-ui/src/build.ts --check",
     "demo:preview": "node apps/demo-ui/serve.ts"
@@ -38,7 +41,7 @@
   "x-runtime-note": [
     "The offline governance core (packages/shared-schemas, nomos-policy,",
     "evidence-receipt, hcs-anchor, and the mock adapter) still has ZERO",
-    "dependencies and runs on Node built-ins alone \u2014 `npm test` needs no install.",
+    "dependencies and runs on Node built-ins alone — `npm test` needs no install.",
     "CP-H2 adds exactly one dependency family, @x402/hedera and its @x402/core",
     "peer, used only by the REAL Hedera path: hedera-signer.ts, real-adapter.ts,",
     "the signer process and the tools/ scripts. Nothing under tests/ imports it,",

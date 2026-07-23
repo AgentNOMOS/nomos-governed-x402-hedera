@@ -55,7 +55,10 @@ mock warning. Mock artifacts still exist for the offline suite and still carry
 | Demo UI | `apps/demo-ui/` | ✅ CP-H8 | **real**, local only — presents CP-H2 evidence, refuses to render an anchor |
 | HCS anchor envelope v2 | `packages/hcs-anchor/src/anchor-envelope.ts` | ✅ CP-H7 prep | **real** bytes, nothing submitted |
 | HCS anchor verifier | `.../anchor-verifier.ts` | ✅ CP-H7 prep | **real**, offline; CONFIRMED needs an observation |
-| HCS anchor guard | `.../anchor-guard.ts` | ✅ CP-H7 prep | **real**, currently BLOCKED — no grant, no topic |
+| HCS anchor guard (Grant B) | `.../anchor-guard.ts` | ✅ CP-H7D | **real**, BLOCKED — no confirmed topic, no Grant B |
+| Topic configuration (frozen) | `.../topic-config.ts` | ✅ CP-H7D | **real**, digest `sha256:42ee4d26…650f6b` |
+| Topic guard (Grant A) + read-back | `.../topic-guard.ts` | ✅ CP-H7D | **real**, BLOCKED — no Grant A |
+| Topic creation runner | `tools/create-anchor-topic.ts` | 🟡 dry run only | builds no transaction; no SDK on the dry path |
 | HCS anchor runner | `tools/anchor-receipt.ts` | 🟡 dry run only | `--execute` refuses; no SDK loaded on the dry path |
 | Standalone anchor verifier CLI | `tools/verify-anchor.ts` | ✅ CP-H7 prep | **real** |
 | Secret scanner | `tools/secret-scan.ts` | ✅ complete | **real** |
@@ -127,8 +130,9 @@ from auto-account creation and the code read `transactions[0]`. Fixed in
 `selectUserTransaction`, regression-tested in `tests/unit/child-records.test.ts`.
 Full account in `docs/evidence/CP-H2-REPORT.md` §4.
 
-**Next:** CP-H7 execution (one topic create + one message submit, both awaiting
-operator approval — see `docs/CP-H7-TRANSACTION-PLAN.md`), the bounty video, and
+**Next:** CP-H7 execution. The topic configuration is locked (CP-H7D) and awaits
+**Grant A**; Grant B cannot be written until a topic exists and has been read back
+field by field. See `docs/CP-H7-TRANSACTION-PLAN.md`. Then the bounty video and
 the public repository.
 
 **Not anchored.** `poa_60a1c2220acb7ef835dcdca8` carries `anchor: null` and is

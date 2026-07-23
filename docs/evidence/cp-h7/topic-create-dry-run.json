@@ -1,0 +1,45 @@
+{
+  "mode": "DRY_RUN",
+  "generated_at": "2026-07-23T14:31:00Z",
+  "topic_config": {
+    "schema": "nomos.gx402.hcs_topic_config.v1",
+    "network": "hedera:testnet",
+    "payer_account_id": "0.0.9689846",
+    "memo": "NOMOS CP-H7 PoA anchor v2 | TESTNET_DEMO_ONLY | poa_60a1c2220acb7ef835dcdca8",
+    "memo_bytes": 76,
+    "admin_key": null,
+    "submit_key": {
+      "type": "ECDSA_SECP256K1",
+      "public_key": "025da46e31ecfa0ded857ec843508fee25efcf73780f5725c1da8ba49be8ce4c17"
+    },
+    "auto_renew_account_id": "0.0.9689846",
+    "auto_renew_period_seconds": 8000001,
+    "max_transaction_fee_tinybar": "50000000"
+  },
+  "topic_config_digest": "sha256:42ee4d26dd74a13d1f58c9d72978580db16ecc55a8da6f1bd530aed85e650f6b",
+  "topic_config_canonical_utf8": "{\"admin_key\":null,\"auto_renew_account_id\":\"0.0.9689846\",\"auto_renew_period_seconds\":8000001,\"max_transaction_fee_tinybar\":\"50000000\",\"memo\":\"NOMOS CP-H7 PoA anchor v2 | TESTNET_DEMO_ONLY | poa_60a1c2220acb7ef835dcdca8\",\"memo_bytes\":76,\"network\":\"hedera:testnet\",\"payer_account_id\":\"0.0.9689846\",\"schema\":\"nomos.gx402.hcs_topic_config.v1\",\"submit_key\":{\"public_key\":\"025da46e31ecfa0ded857ec843508fee25efcf73780f5725c1da8ba49be8ce4c17\",\"type\":\"ECDSA_SECP256K1\"}}",
+  "memo_bytes": 76,
+  "submit_key_verified_against_payer": true,
+  "guard": {
+    "allowed": false,
+    "blockers": [
+      "ANCHOR_DISABLED:NOMOS_GX402_ANCHOR_ENABLED is not true",
+      "LEDGER_STATE_UNKNOWN:could not list existing topic creations — refusing while unclear",
+      "NO_GRANT_A:.local/HCS_TOPIC_CREATE_AUTHORIZED is absent or not a valid grant document"
+    ],
+    "notes": [
+      "submit key verified against the payer's own key — the topic will be writable by us"
+    ]
+  },
+  "would_submit": {
+    "transactions": 1,
+    "transaction_type": "TopicCreateTransaction",
+    "built": false,
+    "frozen": false,
+    "signed": false,
+    "sent": false,
+    "transaction_id": null
+  },
+  "permanence_note": "Without an admin key the configuration and submit key cannot be changed and the topic cannot be removed by a regular TopicDeleteTransaction. This is NOT a guarantee of perpetual existence: expiration and auto-renew remain independent ledger properties, and mirror-node history retention is a third-party policy, not a property of the topic.",
+  "note": "No transaction object was constructed. The Hedera SDK was not imported by this run."
+}
