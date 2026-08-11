@@ -590,11 +590,12 @@ describe("demo page — the architecture graphics", () => {
     assert.match(html, /<meta name="twitter:image:alt"/);
   });
 
-  test("the twelve-layer material is named and described as AgentNOMOS", () => {
+  test("the twelve-layer material is labelled historical and superseded", () => {
     const architecture = html.slice(html.indexOf('<section id="architecture"'), html.indexOf('<section id="limits"'));
-    assert.match(architecture, /<summary>Technical architecture — the AgentNOMOS twelve layers<\/summary>/);
-    assert.match(architecture, /<figcaption>\s*AgentNOMOS twelve-layer governance architecture \(detail view\)\./);
-    assert.match(architecture, /alt="AgentNOMOS twelve-layer governance architecture/);
+    assert.match(architecture, /<summary>Technical architecture — historical twelve-layer diagram \(superseded\)<\/summary>/);
+    assert.match(architecture, /<figcaption>\s*Historical AgentNOMOS twelve-layer governance architecture \(detail view\)/);
+    assert.match(architecture, /alt="Historical AgentNOMOS twelve-layer governance architecture/);
+    assert.match(architecture, /eleven-stage NOMOS Trust Chain \(S0–S10\)/, "the current canon must be named where the historical diagram is shown");
     assert.doesNotMatch(html, /NOMOS Protocol/i, "the retired NOMOS Protocol naming must not reappear");
   });
 
@@ -619,7 +620,7 @@ describe("demo page — the architecture graphics", () => {
       assert.doesNotMatch(alt, /^(image|diagram|graphic|picture) of/i, "alt text should not announce itself as an image");
     }
     // The layer names are the diagram's own content; a stale alt would drift.
-    const detail = alts.find((a) => a.startsWith("AgentNOMOS"));
+    const detail = alts.find((a) => a.startsWith("Historical AgentNOMOS"));
     assert.ok(detail);
     for (const layer of ["ATLAS", "AURUM", "LOGOS", "SCRIBE", "AEGIS", "MERCURY", "ARGUS", "ARCHON", "NOMOS", "AGORA", "FOEDUS", "ORBIS"]) {
       assert.match(detail, new RegExp(`\\b${layer}\\b`), `${layer} is missing from the detail alt text`);
