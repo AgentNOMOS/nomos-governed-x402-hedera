@@ -5,7 +5,7 @@ Two graphics, both supplied for CP-H8 and both present.
 | File | Intrinsic size | Where it appears | What it shows |
 |---|---|---|---|
 | `nomosdemo.png` | 1254 × 1254 | §06 *NOMOS architecture*, and as the `og:image` / `twitter:image` social preview | NOMOS as the governance centre of a federated agent ecosystem — the primary visual motif |
-| `AgentNOMOS-12-Layer-Architecture-v1.png` | 1536 × 1024 | §06, inside the collapsed **“Technical architecture — the AgentNOMOS twelve layers”** disclosure | The AgentNOMOS twelve-layer governance architecture, ATLAS through ORBIS |
+| `AgentNOMOS-12-Layer-Architecture-v1.png` | 1536 × 1024 | §06, inside the collapsed **“Technical architecture — historical twelve-layer diagram (superseded)”** disclosure | The historical AgentNOMOS twelve-layer diagram (ATLAS through ORBIS), preserved as supplied for this 2026 testnet demo. **Superseded:** the current canonical NOMOS Trust Chain is eleven stages, S0–S10 — see agentnomos.com |
 
 Both were re-encoded losslessly on commit (PNG, `optimize=True`); the pixel data
 is byte-identical to what was supplied and no dimension was changed. Neither

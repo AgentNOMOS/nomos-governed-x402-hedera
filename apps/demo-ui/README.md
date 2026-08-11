@@ -89,7 +89,9 @@ the in-browser control recomputes SHA-256 over the canonical form of the
 
 `public/assets/nomosdemo.png` is the primary architecture visual and the social
 preview; `public/assets/AgentNOMOS-12-Layer-Architecture-v1.png` is the detail
-view inside the collapsed twelve-layer disclosure. Both are committed, both are
+view inside the collapsed disclosure of the historical twelve-layer diagram
+(superseded — the current canonical NOMOS Trust Chain is eleven stages,
+S0–S10). Both are committed, both are
 declared at their intrinsic size, both are lazy-loaded because both sit far below
 the fold. If either file goes missing the page falls back to a named slot rather
 than a broken image or an invented diagram. See `public/assets/README.md`.
